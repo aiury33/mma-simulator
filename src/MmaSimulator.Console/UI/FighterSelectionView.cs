@@ -81,6 +81,6 @@ public sealed class FighterSelectionView
         var record = Markup.Escape(f.Record.Display);
         var wc     = Markup.Escape(f.WeightClass.ToString());
         var style  = Markup.Escape(f.PrimaryStyle.ToString());
-        return $"{name} ({record}) [{wc}] — {style}";
+        return $"{name} ({record}) [[{wc}]] — {style}";
     }
 }
