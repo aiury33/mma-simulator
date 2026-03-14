@@ -5,15 +5,24 @@ using MmaSimulator.Core.Models;
 namespace MmaSimulator.Simulation.Simulators;
 
 /// <summary>
-/// Simulates a single round via a 300-tick loop (1 tick = 1 second).
+/// Simulates a single round via a 300-tick loop (1 tick ≈ 1 second of fight time).
 ///
-/// Calibration targets (per 5-round fight):
-///   Elite striker  →  150–180 sig strikes,  0–1 TD,   0   sub attempts
-///   Elite wrestler →   50–80  sig strikes,  6–12 TD,  0–2 sub attempts
-///   BJJ specialist →   60–100 sig strikes,  3–8  TD,  3–8 sub attempts
+/// <para><b>Calibration targets (per 5-round fight):</b>
+/// <list type="table">
+///   <item><term>Elite striker (LW)</term><description>~100–130 sig strikes, 0–1 TDs, 0 sub attempts</description></item>
+///   <item><term>Elite wrestler</term><description>~40–80 sig strikes, 6–12 TDs, 0–2 sub attempts</description></item>
+///   <item><term>BJJ specialist</term><description>~50–90 sig strikes, 3–8 TDs, 3–8 sub attempts</description></item>
+/// </list>
+/// </para>
 ///
-/// Action probabilities are deliberately low because most ticks represent
-/// movement, circling, feinting, and recovery — not continuous action.
+/// <para>Action probabilities are deliberately low because most ticks represent
+/// movement, circling, feinting, and recovery between exchanges. Only meaningful
+/// actions produce <see cref="FightEvent"/> entries in the round log.</para>
+///
+/// <para><b>Finish mechanisms:</b>
+/// KO/stun probability grows exponentially with accumulated head damage (see
+/// <see cref="StrikingEngine"/>). TKO after a knockdown uses a style-aware
+/// finisher multiplier. Submissions use a multi-tick lock process.</para>
 /// </summary>
 public sealed class RoundSimulator : IRoundSimulator
 {
@@ -127,7 +136,7 @@ public sealed class RoundSimulator : IRoundSimulator
                 break;
             }
 
-            if (tickEvent.Type == FightEventType.KnockdownScored && CheckTkoAfterKnockdown(opponent))
+            if (tickEvent.Type == FightEventType.KnockdownScored && CheckTkoAfterKnockdown(actor, opponent))
             {
                 var tkoEvent = new FightEvent
                 {
@@ -498,13 +507,40 @@ public sealed class RoundSimulator : IRoundSimulator
         return Math.Clamp(styleMod * (actor.Fighter.Grappling.SubmissionOffense / 70.0), 0.3, 5.0);
     }
 
-    private bool CheckTkoAfterKnockdown(FighterState downed)
+    /// <summary>
+    /// Determines whether the referee stops the fight immediately after a knockdown (TKO).
+    ///
+    /// <para>Factors that raise TKO probability:
+    /// <list type="bullet">
+    ///   <item>Each additional knockdown in the same fight significantly increases stoppage odds.</item>
+    ///   <item>Finisher-style attackers (Kickboxer, Striker, MuayThai) get a 1.5× multiplier
+    ///       because they follow up with aggressive ground-and-pound.</item>
+    ///   <item>Low toughness and drained stamina both reduce the fighter's ability to recover.</item>
+    /// </list>
+    /// </para>
+    ///
+    /// <para>Calibration targets (first knockdown):
+    /// ~20–35% TKO for a finisher vs an average chin; ~10–15% vs a very tough fighter.</para>
+    /// </summary>
+    private bool CheckTkoAfterKnockdown(FighterState attacker, FighterState downed)
     {
-        var tkoProb = (downed.KnockdownsThisFight / 2.0)
-            * (1.0 - downed.Fighter.Athletics.Toughness / 100.0)
-            * (1.0 - downed.CurrentStamina * 0.4);
+        var toughness     = downed.Fighter.Athletics.Toughness / 100.0;
+        var staminaFactor = Math.Max(0.3, downed.CurrentStamina);
 
-        return _random.Chance(Math.Clamp(tkoProb, 0, 0.80));
+        // Finisher multiplier: aggressive strikers/kickboxers follow up ruthlessly
+        var finisherMult = attacker.Fighter.PrimaryStyle switch
+        {
+            FightingStyle.Kickboxer or FightingStyle.Striker or FightingStyle.MuayThai => 1.5,
+            FightingStyle.Boxer or FightingStyle.MMAFighter => 1.2,
+            _ => 1.0
+        };
+
+        var tkoProb = finisherMult
+            * (0.25 + downed.KnockdownsThisFight * 0.35)
+            * (1.0 - toughness * 0.65)
+            * (1.0 - staminaFactor * 0.3);
+
+        return _random.Chance(Math.Clamp(tkoProb, 0.05, 0.92));
     }
 
     private static Round BuildRound(int number, List<FightEvent> events, RoundStats statsA, RoundStats statsB) =>
