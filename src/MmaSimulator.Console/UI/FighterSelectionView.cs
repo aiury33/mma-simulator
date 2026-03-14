@@ -77,7 +77,10 @@ public sealed class FighterSelectionView
 
     private static string FormatFighter(Fighter f)
     {
-        var wc = f.WeightClass.ToString();
-        return $"{f.FullName} ({f.Record.Display}) [{wc}] — {f.PrimaryStyle}";
+        var name   = Markup.Escape(f.FullName);
+        var record = Markup.Escape(f.Record.Display);
+        var wc     = Markup.Escape(f.WeightClass.ToString());
+        var style  = Markup.Escape(f.PrimaryStyle.ToString());
+        return $"{name} ({record}) [{wc}] — {style}";
     }
 }
