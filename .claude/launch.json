@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "MMA Simulator (Console)",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/MmaSimulator.Console"],
+      "port": 0
+    },
+    {
+      "name": "Run All Tests",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["test", "MmaSimulator.slnx"],
+      "port": 0
+    }
+  ]
+}

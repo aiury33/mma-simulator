@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>MmaSimulator.Console</RootNamespace>
+    <AssemblyName>MmaSimulator.Console</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Spectre.Console" Version="0.49.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MmaSimulator.Core\MmaSimulator.Core.csproj" />
+    <ProjectReference Include="..\MmaSimulator.Simulation\MmaSimulator.Simulation.csproj" />
+  </ItemGroup>
+
+</Project>

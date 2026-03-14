@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MmaSimulator.Console/MmaSimulator.Console.csproj" />
+    <Project Path="src/MmaSimulator.Core/MmaSimulator.Core.csproj" />
+    <Project Path="src/MmaSimulator.Simulation/MmaSimulator.Simulation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MmaSimulator.Core.Tests/MmaSimulator.Core.Tests.csproj" />
+    <Project Path="tests/MmaSimulator.Integration.Tests/MmaSimulator.Integration.Tests.csproj" />
+    <Project Path="tests/MmaSimulator.Simulation.Tests/MmaSimulator.Simulation.Tests.csproj" />
+  </Folder>
+</Solution>
