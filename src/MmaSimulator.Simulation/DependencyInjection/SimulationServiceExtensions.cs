@@ -10,6 +10,13 @@ namespace MmaSimulator.Simulation.DependencyInjection;
 
 public static class SimulationServiceExtensions
 {
+    /// <summary>
+    /// Registers all simulation-layer services, including randomness, engines,
+    /// simulators, narration helpers, and the in-memory fighter repository.
+    /// </summary>
+    /// <param name="services">The service collection to populate.</param>
+    /// <param name="randomSeed">Optional deterministic seed for reproducible simulations.</param>
+    /// <returns>The same service collection for chaining.</returns>
     public static IServiceCollection AddSimulationServices(this IServiceCollection services, int? randomSeed = null)
     {
         if (randomSeed.HasValue)

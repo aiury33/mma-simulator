@@ -7,11 +7,14 @@ public sealed class JudgeScoringEngine : IJudgeScoringEngine
 {
     private static readonly (double Striking, double Grappling, double Aggression, double Control)[] JudgeCriteriaWeights =
     [
-        (0.40, 0.35, 0.15, 0.10),
-        (0.45, 0.30, 0.10, 0.15),
-        (0.35, 0.40, 0.15, 0.10)
+        (0.50, 0.25, 0.10, 0.15),
+        (0.55, 0.20, 0.10, 0.15),
+        (0.45, 0.30, 0.10, 0.15)
     ];
 
+    /// <summary>
+    /// Scores a round for one judge using weighted striking, grappling, aggression, and control criteria.
+    /// </summary>
     public JudgeScorecard ScoreRound(int judgeIndex, Round round, Fighter fighterA, Fighter fighterB)
     {
         var weights = JudgeCriteriaWeights[Math.Clamp(judgeIndex - 1, 0, 2)];
@@ -19,14 +22,16 @@ public sealed class JudgeScoringEngine : IJudgeScoringEngine
         var b = round.FighterBStats;
 
         var strikingDiff = (a.SignificantStrikesLanded - b.SignificantStrikesLanded)
-            + (a.KnockdownsScored - b.KnockdownsScored) * 5;
+            + (a.KnockdownsScored - b.KnockdownsScored) * 8
+            + (b.DamageTaken - a.DamageTaken) * 1.25;
 
         var grapplingDiff = (a.TakedownsLanded - b.TakedownsLanded) * 3
-            + (a.SubmissionAttempts - b.SubmissionAttempts) * 2;
+            + (a.SubmissionAttempts - b.SubmissionAttempts) * 2.5;
 
         var aggressionDiff = a.TotalStrikesLanded - b.TotalStrikesLanded;
 
-        var controlDiff = a.TakedownsLanded - b.TakedownsLanded;
+        var controlDiff = (a.TakedownsLanded - b.TakedownsLanded)
+            + (a.SubmissionAttempts - b.SubmissionAttempts) * 0.5;
 
         var composite = weights.Striking * strikingDiff
             + weights.Grappling * grapplingDiff
@@ -35,22 +40,22 @@ public sealed class JudgeScoringEngine : IJudgeScoringEngine
 
         int scoreA, scoreB;
 
-        if (a.KnockdownsScored > 0 && composite > 3)
+        if (a.KnockdownsScored > b.KnockdownsScored && composite > 5)
         {
             scoreA = 10;
             scoreB = 8;
         }
-        else if (b.KnockdownsScored > 0 && composite < -3)
+        else if (b.KnockdownsScored > a.KnockdownsScored && composite < -5)
         {
             scoreA = 8;
             scoreB = 10;
         }
-        else if (composite > 1.5)
+        else if (composite > 2.0)
         {
             scoreA = 10;
             scoreB = 9;
         }
-        else if (composite < -1.5)
+        else if (composite < -2.0)
         {
             scoreA = 9;
             scoreB = 10;
@@ -65,6 +70,9 @@ public sealed class JudgeScoringEngine : IJudgeScoringEngine
         return new JudgeScorecard(judgeIndex, scoreA, scoreB, rationale);
     }
 
+    /// <summary>
+    /// Totals the round scorecards for one judge and returns the final card.
+    /// </summary>
     public JudgeDecision TallyDecision(int judgeIndex, IReadOnlyList<JudgeScorecard> roundScores, Fighter fighterA, Fighter fighterB)
     {
         var totalA = roundScores.Where(s => s.JudgeIndex == judgeIndex).Sum(s => s.ScoreFighterA);
@@ -73,10 +81,29 @@ public sealed class JudgeScoringEngine : IJudgeScoringEngine
         return new JudgeDecision(judgeIndex, totalA, totalB, winner);
     }
 
+    /// <summary>
+    /// Builds a short textual explanation for the round score.
+    /// </summary>
     private static string BuildRationale(RoundStats a, RoundStats b, int scoreA, int scoreB, Fighter fighterA, Fighter fighterB)
     {
-        var winner = scoreA > scoreB ? fighterA.LastName : scoreB > scoreA ? fighterB.LastName : "Even";
-        if (winner == "Even") return "Very close round, judge scores it 10-10.";
-        return $"{winner} dominated with {Math.Max(a.SignificantStrikesLanded, b.SignificantStrikesLanded)} significant strikes.";
+        if (scoreA == scoreB)
+            return "Very close round, judge scores it 10-10.";
+
+        var winnerIsA = scoreA > scoreB;
+        var winnerName = winnerIsA ? fighterA.LastName : fighterB.LastName;
+        var winnerStats = winnerIsA ? a : b;
+        var loserStats = winnerIsA ? b : a;
+
+        if (winnerStats.KnockdownsScored > loserStats.KnockdownsScored)
+            return $"{winnerName} won the round with the knockdown and cleaner impact.";
+
+        if (winnerStats.TakedownsLanded > loserStats.TakedownsLanded || winnerStats.SubmissionAttempts > loserStats.SubmissionAttempts)
+            return $"{winnerName} edged the round with grappling control and positional threat.";
+
+        var sigStrikeGap = winnerStats.SignificantStrikesLanded - loserStats.SignificantStrikesLanded;
+        if (sigStrikeGap > 0)
+            return $"{winnerName} led the round on cleaner striking, landing {winnerStats.SignificantStrikesLanded} significant strikes.";
+
+        return $"{winnerName} had the stronger moments and overall impact in the round.";
     }
 }

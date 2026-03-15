@@ -10,6 +10,9 @@ public sealed class FightSimulator : IFightSimulator
     private readonly IJudgeScoringEngine _judgeScoring;
     private readonly IStaminaEngine _stamina;
 
+    /// <summary>
+    /// Creates the fight simulator with its round, scoring, and stamina dependencies.
+    /// </summary>
     public FightSimulator(
         IRoundSimulator roundSimulator,
         IJudgeScoringEngine judgeScoring,
@@ -20,6 +23,9 @@ public sealed class FightSimulator : IFightSimulator
         _stamina        = stamina;
     }
 
+    /// <summary>
+    /// Simulates a full fight until a finish or judges' decision.
+    /// </summary>
     public FightResult Simulate(Fight fight, SimulationOptions options)
     {
         var stateA = new FighterState(fight.FighterA);
@@ -64,6 +70,7 @@ public sealed class FightSimulator : IFightSimulator
             // Between-round stamina recovery
             stateA.CurrentStamina = Math.Min(1.0, stateA.CurrentStamina + _stamina.CalculateRoundRecovery(stateA));
             stateB.CurrentStamina = Math.Min(1.0, stateB.CurrentStamina + _stamina.CalculateRoundRecovery(stateB));
+            ResetBetweenRounds(stateA, stateB);
         }
 
         if (finishMethod != null)
@@ -112,6 +119,9 @@ public sealed class FightSimulator : IFightSimulator
         };
     }
 
+    /// <summary>
+    /// Aggregates per-round stats into a fight-level summary.
+    /// </summary>
     private static FightStatsSummary BuildSummary(IReadOnlyList<Round> rounds) => new(
         rounds.Sum(r => r.FighterAStats.SignificantStrikesLanded),
         rounds.Sum(r => r.FighterBStats.SignificantStrikesLanded),
@@ -123,4 +133,19 @@ public sealed class FightSimulator : IFightSimulator
         rounds.Sum(r => r.FighterBStats.KnockdownsScored),
         rounds.Sum(r => r.FighterAStats.DamageTaken),
         rounds.Sum(r => r.FighterBStats.DamageTaken));
+
+    /// <summary>
+    /// Resets transient positional state between rounds while preserving fight damage and stamina.
+    /// </summary>
+    private static void ResetBetweenRounds(FighterState stateA, FighterState stateB)
+    {
+        stateA.CurrentPosition = FightPosition.Standing;
+        stateB.CurrentPosition = FightPosition.Standing;
+        stateA.GroundedTicksRemaining = 0;
+        stateB.GroundedTicksRemaining = 0;
+        stateA.IsStunned = false;
+        stateB.IsStunned = false;
+        stateA.StunRecoveryTicksRemaining = 0;
+        stateB.StunRecoveryTicksRemaining = 0;
+    }
 }

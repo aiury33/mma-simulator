@@ -2,6 +2,8 @@ using MmaSimulator.Core.Enums;
 using MmaSimulator.Core.Interfaces;
 using MmaSimulator.Core.Models;
 using MmaSimulator.Simulation.Narration;
+using MmaSimulator.Simulation.Physics;
+using MmaSimulator.Simulation.Styles;
 
 namespace MmaSimulator.Simulation.Engines;
 
@@ -41,12 +43,24 @@ public sealed class StrikingEngine : IStrikingEngine
             [StrikeType.Uppercut]        = 0.85,
             [StrikeType.BodyShot]        = 0.70,
             [StrikeType.Overhand]        = 1.10,
-            [StrikeType.Elbow]           = 1.15,
-            [StrikeType.Knee]            = 1.00,
+            [StrikeType.ElbowHorizontal] = 1.15,
+            [StrikeType.ElbowUpward]     = 1.10,
+            [StrikeType.SpinningElbow]   = 1.30,
+            [StrikeType.KneeBody]        = 1.00,
+            [StrikeType.KneeHead]        = 1.25,
             [StrikeType.FrontKick]       = 0.65,
+            [StrikeType.Teep]            = 0.60,
+            [StrikeType.BodyKick]        = 1.00,
+            [StrikeType.LowKick]         = 0.75,
+            [StrikeType.CalfKick]        = 0.70,
+            [StrikeType.ObliqueKick]     = 0.55,
             [StrikeType.Roundhouse]      = 0.95,
             [StrikeType.HeadKick]        = 1.40,
-            [StrikeType.SpinningBackKick]= 1.20
+            [StrikeType.SpinningBackKick]= 1.20,
+            [StrikeType.Stomp]           = 0.65,
+            [StrikeType.GroundPunch]     = 1.12,
+            [StrikeType.GroundElbow]     = 1.45,
+            [StrikeType.Hammerfist]      = 1.18
         };
 
     private readonly IRandomProvider _random;
@@ -87,6 +101,8 @@ public sealed class StrikingEngine : IStrikingEngine
 
         var defenseRoll      = ApplyNoise(_random.NextDouble());
         var effectiveDefense = defender.Fighter.Striking.Defense / 100.0
+                               * PhysicalAdvantageModel.StrikeDefenseMultiplier(defender, attacker)
+                               * defender.Fighter.SpecialtyFactor(StyleSpecialty.BoxingCountering)
                                * Math.Max(0.3, defender.CurrentStamina);
 
         var blocked = defenseRoll < effectiveDefense * 0.5;
@@ -95,15 +111,35 @@ public sealed class StrikingEngine : IStrikingEngine
         var knockdown = false;
         var stun      = false;
 
-        if (!blocked && strikeType != StrikeType.BodyShot)
+        if (!blocked && IsHeadStrike(strikeType))
         {
             defender.AccumulatedHeadDamage += damage;
-            (knockdown, stun) = CheckKoConditions(attacker, defender, damage);
+            knockdown = CheckFlashKo(attacker, defender, strikeType, damage);
+            var accumulatedResult = CheckKoConditions(attacker, defender, damage);
+            knockdown = knockdown || accumulatedResult.knockdown;
+            stun = accumulatedResult.stun;
+        }
+        else if (!blocked && IsLegStrike(strikeType))
+        {
+            defender.AccumulatedLegDamage += damage;
+            defender.CurrentStamina = Math.Max(0.05, defender.CurrentStamina - Math.Clamp(damage / 40.0, 0.01, 0.12));
+            (knockdown, stun) = CheckLegFinishConditions(attacker, defender, strikeType, damage);
         }
         else
         {
-            // Body shots and blocked punches add only body damage
-            defender.AccumulatedBodyDamage += damage * (strikeType == StrikeType.BodyShot ? 1.0 : 0.4);
+            defender.AccumulatedBodyDamage += damage * (IsBodyStrike(strikeType) ? 1.0 : 0.4);
+
+            if (!blocked && IsBodyStrike(strikeType))
+            {
+                defender.CurrentStamina = Math.Max(0.05, defender.CurrentStamina - Math.Clamp(damage / 45.0, 0.01, 0.10));
+                (knockdown, stun) = CheckBodyFinishConditions(attacker, defender, strikeType, damage);
+            }
+        }
+
+        if (stun)
+        {
+            defender.IsStunned = true;
+            defender.StunRecoveryTicksRemaining = Math.Max(defender.StunRecoveryTicksRemaining, 4);
         }
 
         var eventType  = knockdown   ? FightEventType.KnockdownScored
@@ -125,9 +161,10 @@ public sealed class StrikingEngine : IStrikingEngine
         var base_        = attacker.Fighter.Striking.Accuracy / 100.0;
         var staminaMod   = Math.Max(0.5, attacker.CurrentStamina);
         var reachDiff    = attacker.Fighter.Physical.ReachCm - defender.Fighter.Physical.ReachCm;
-        var reachMod     = 1.0 + Math.Clamp(reachDiff / 200.0, -0.1, 0.1);
+        var reachMod     = 1.0 + Math.Clamp(reachDiff / 500.0, -0.04, 0.04);
+        var physicalMod  = PhysicalAdvantageModel.StrikeAccuracyMultiplier(attacker, defender);
         var stancePenalty = SameStancePenalty(attacker.Fighter.Stance, defender.Fighter.Stance);
-        return Math.Clamp(base_ * staminaMod * reachMod * (1 - stancePenalty), 0.05, 0.95);
+        return Math.Clamp(base_ * staminaMod * reachMod * physicalMod * (1 - stancePenalty), 0.03, 0.98);
     }
 
     // ── Damage ────────────────────────────────────────────────────────────
@@ -141,11 +178,46 @@ public sealed class StrikingEngine : IStrikingEngine
     {
         var baseDamage = attacker.Fighter.Striking.Power / 100.0
                          * PowerMultipliers.GetValueOrDefault(strikeType, 1.0)
-                         * attacker.EffectiveDamageMultiplier;
+                         * attacker.EffectiveDamageMultiplier
+                         * PhysicalAdvantageModel.StrikeDamageMultiplier(attacker, defender);
+
+        if (IsGroundStrike(strikeType) && IsDominantGroundPosition(attacker.CurrentPosition))
+        {
+            var specialtyBonus = strikeType switch
+            {
+                StrikeType.GroundElbow => attacker.Fighter.SpecialtyFactor(StyleSpecialty.GroundAndPoundElbows),
+                StrikeType.GroundPunch or StrikeType.Hammerfist => attacker.Fighter.SpecialtyFactor(StyleSpecialty.GroundAndPoundPunches),
+                _ => 1.0
+            };
+
+            var positionBonus = attacker.CurrentPosition switch
+            {
+                FightPosition.MountTop => 1.22,
+                FightPosition.BackControlAttacker => 1.16,
+                FightPosition.SideControlTop or FightPosition.TurtleTop => 1.13,
+                _ => 1.08
+            };
+
+            baseDamage *= positionBonus * specialtyBonus;
+        }
+
+        var durability = IsBodyStrike(strikeType)
+            ? defender.Fighter.Striking.BodyDurability / 100.0
+            : IsLegStrike(strikeType)
+                ? defender.Fighter.Striking.BodyDurability / 100.0
+            : defender.Fighter.Striking.ChinDurability / 100.0;
+
+        var resistance = IsBodyStrike(strikeType)
+            ? PhysicalAdvantageModel.BodyDamageResistanceMultiplier(defender, attacker)
+            : IsLegStrike(strikeType)
+                ? PhysicalAdvantageModel.BodyDamageResistanceMultiplier(defender, attacker) * 0.9
+            : PhysicalAdvantageModel.HeadDamageResistanceMultiplier(defender, attacker);
+
+        baseDamage /= Math.Max(0.45, durability * resistance);
 
         if (blocked) baseDamage *= 0.4;
 
-        return Math.Clamp(baseDamage * (1 + (_random.NextDouble() - 0.5) * 0.2), 0.1, 10.0);
+        return Math.Clamp(baseDamage * (1 + (_random.NextDouble() - 0.5) * 0.2), 0.05, 12.0);
     }
 
     // ── KO / Stun check ───────────────────────────────────────────────────
@@ -171,20 +243,99 @@ public sealed class StrikingEngine : IStrikingEngine
         var chin      = defender.Fighter.Striking.ChinDurability / 100.0;
         var toughness = defender.Fighter.Athletics.Toughness    / 100.0;
 
-        var dangerMult       = GetKoDangerMultiplier(attacker, defender);
+        var dangerMult       = GetKoDangerMultiplier(attacker, defender)
+                               * PhysicalAdvantageModel.KnockdownThreatMultiplier(attacker, defender);
         var normalizedDamage = defender.AccumulatedHeadDamage / (20.0 * Math.Max(0.3, chin));
+        var damageSpike      = 1.0 + Math.Clamp(lastDamage / 8.0, 0.0, 0.6);
 
         // Exponential growth: early strikes are relatively safe; later strikes are increasingly lethal
-        var koThreshold = (1.0 - Math.Exp(-normalizedDamage * dangerMult)) * (1.0 - toughness * 0.3);
+        var koThreshold = (1.0 - Math.Exp(-normalizedDamage * dangerMult * damageSpike)) * (1.0 - toughness * 0.35);
         koThreshold = Math.Clamp(koThreshold, 0.0, 0.95);
 
-        if (_random.Chance(koThreshold * 0.35))
+        if (_random.Chance(koThreshold * 0.45))
             return (true, false);
 
-        if (_random.Chance(koThreshold * 0.55))
+        if (_random.Chance(koThreshold * 0.70))
             return (false, true);
 
         return (false, false);
+    }
+
+    /// <summary>
+    /// Evaluates rare one-shot knockdowns or knockouts from perfectly landed head strikes.
+    /// </summary>
+    private bool CheckFlashKo(FighterState attacker, FighterState defender, StrikeType strikeType, double damage)
+    {
+        var flashMultiplier = strikeType switch
+        {
+            StrikeType.HeadKick => 1.55,
+            StrikeType.SpinningElbow => 1.45,
+            StrikeType.Overhand or StrikeType.Hook or StrikeType.KneeHead => 1.25,
+            _ => 1.0
+        };
+
+        var power = attacker.Fighter.Striking.Power / 100.0;
+        var chin = defender.Fighter.Striking.ChinDurability / 100.0;
+        var flashProb = Math.Max(0.0, damage - 7.5) / 11.0
+            * flashMultiplier
+            * power
+            * GetKoDangerMultiplier(attacker, defender)
+            * (1.0 - chin * 0.55);
+
+        return _random.Chance(Math.Clamp(flashProb, 0.0, 0.14));
+    }
+
+    /// <summary>
+    /// Evaluates liver-shot style knockdowns and body-shot stuns.
+    /// </summary>
+    private (bool knockdown, bool stun) CheckBodyFinishConditions(
+        FighterState attacker, FighterState defender, StrikeType strikeType, double damage)
+    {
+        var bodyDamage = defender.AccumulatedBodyDamage;
+        var bodyDurability = defender.Fighter.Striking.BodyDurability / 100.0;
+        var staminaFactor = 1.0 - Math.Max(0.25, defender.CurrentStamina) * 0.55;
+
+        var liverMultiplier = strikeType switch
+        {
+            StrikeType.BodyShot => 1.30,
+            StrikeType.BodyKick => 1.40,
+            StrikeType.KneeBody => 1.45,
+            StrikeType.Teep or StrikeType.FrontKick => 0.85,
+            _ => 1.0
+        };
+
+        var knockdownProb = Math.Clamp((bodyDamage / 32.0) * liverMultiplier * (damage / 8.0) * (1.0 - bodyDurability * 0.55) * (0.65 + staminaFactor), 0.0, 0.40);
+        if (_random.Chance(knockdownProb))
+            return (true, false);
+
+        var stunProb = Math.Clamp((bodyDamage / 42.0) * liverMultiplier * (damage / 9.5) * (1.0 - bodyDurability * 0.45), 0.0, 0.52);
+        return _random.Chance(stunProb) ? (false, true) : (false, false);
+    }
+
+    /// <summary>
+    /// Evaluates leg-kick collapses and knee-line damage that can floor or badly stun a fighter.
+    /// </summary>
+    private (bool knockdown, bool stun) CheckLegFinishConditions(
+        FighterState attacker, FighterState defender, StrikeType strikeType, double damage)
+    {
+        var legDamage = defender.AccumulatedLegDamage;
+        var bodyDurability = defender.Fighter.Striking.BodyDurability / 100.0;
+        var movementLoss = 1.0 - defender.EffectiveMovementMultiplier;
+
+        var collapseMultiplier = strikeType switch
+        {
+            StrikeType.ObliqueKick or StrikeType.Stomp => 1.55,
+            StrikeType.CalfKick => 1.18,
+            StrikeType.LowKick or StrikeType.Roundhouse => 1.08,
+            _ => 1.0
+        };
+
+        var knockdownProb = Math.Clamp((legDamage / 30.0) * collapseMultiplier * (damage / 9.0) * (0.45 + movementLoss) * (1.0 - bodyDurability * 0.35), 0.0, 0.28);
+        if (_random.Chance(knockdownProb))
+            return (true, false);
+
+        var stunProb = Math.Clamp((legDamage / 38.0) * collapseMultiplier * (damage / 11.0) * (0.35 + movementLoss), 0.0, 0.45);
+        return _random.Chance(stunProb) ? (false, true) : (false, false);
     }
 
     /// <summary>
@@ -216,7 +367,7 @@ public sealed class StrikingEngine : IStrikingEngine
         var weightDiff = attacker.Fighter.Physical.WeightLbs - defender.Fighter.Physical.WeightLbs;
         if (weightDiff > 0)
         {
-            var diffBonus = Math.Clamp(weightDiff / 30.0, 0.0, 3.0);
+            var diffBonus = Math.Clamp(weightDiff / 60.0, 0.0, 1.5);
             baseMultiplier *= 1.0 + diffBonus;
         }
 
@@ -225,15 +376,62 @@ public sealed class StrikingEngine : IStrikingEngine
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Applies bounded random noise to a probability roll or scalar value.
+    /// </summary>
     private double ApplyNoise(double value) =>
         Math.Clamp(value + (_random.NextDouble() - 0.5) * 2 * _randomnessFactor, 0.01, 0.99);
 
+    /// <summary>
+    /// Applies a small penalty when both fighters share the same stance.
+    /// </summary>
     private static double SameStancePenalty(Stance attacker, Stance defender)
     {
         if (attacker == Stance.Switch || defender == Stance.Switch) return 0;
         return attacker == defender ? 0.05 : 0;
     }
 
+    /// <summary>
+    /// Returns whether the strike should be treated as a head-targeting attack.
+    /// </summary>
+    private static bool IsHeadStrike(StrikeType strikeType) => strikeType is
+        StrikeType.Jab or StrikeType.Cross or StrikeType.Hook or StrikeType.Uppercut or StrikeType.Overhand
+        or StrikeType.ElbowHorizontal or StrikeType.ElbowUpward or StrikeType.SpinningElbow
+        or StrikeType.KneeHead or StrikeType.HeadKick or StrikeType.GroundPunch
+        or StrikeType.GroundElbow or StrikeType.Hammerfist;
+
+    /// <summary>
+    /// Returns whether the strike should be treated as a body-targeting attack.
+    /// </summary>
+    private static bool IsBodyStrike(StrikeType strikeType) => strikeType is
+        StrikeType.BodyShot or StrikeType.KneeBody or StrikeType.FrontKick or StrikeType.Teep
+        or StrikeType.BodyKick or StrikeType.SpinningBackKick;
+
+    /// <summary>
+    /// Returns whether the strike should be treated as a leg-targeting attack.
+    /// </summary>
+    private static bool IsLegStrike(StrikeType strikeType) => strikeType is
+        StrikeType.LowKick or StrikeType.CalfKick or StrikeType.ObliqueKick or StrikeType.Roundhouse or StrikeType.Stomp;
+
+    /// <summary>
+    /// Returns whether the strike should be treated as a ground-and-pound attack.
+    /// </summary>
+    private static bool IsGroundStrike(StrikeType strikeType) => strikeType is
+        StrikeType.GroundPunch or StrikeType.GroundElbow or StrikeType.Hammerfist;
+
+    /// <summary>
+    /// Returns whether the attacker is in a dominant top position that amplifies ground strikes.
+    /// </summary>
+    private static bool IsDominantGroundPosition(FightPosition position) => position is
+        FightPosition.GroundAndPoundTop or
+        FightPosition.TurtleTop or
+        FightPosition.SideControlTop or
+        FightPosition.MountTop or
+        FightPosition.BackControlAttacker;
+
+    /// <summary>
+    /// Creates an internal strike event for narration and downstream bookkeeping.
+    /// </summary>
     private static FightEvent CreateEvent(FightEventType type, FighterState attacker, FighterState defender,
         StrikeType strikeType, double damage) =>
         new()

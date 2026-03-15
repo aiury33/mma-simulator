@@ -2,6 +2,7 @@ using FluentAssertions;
 using MmaSimulator.Core.Enums;
 using MmaSimulator.Core.Interfaces;
 using MmaSimulator.Core.Models;
+using MmaSimulator.Core.ValueObjects;
 using MmaSimulator.Simulation.DependencyInjection;
 using MmaSimulator.Simulation.Tests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,4 +101,77 @@ public sealed class FightSimulatorTests
         result.FinishRound.Should().BeGreaterThan(0).And.BeLessThanOrEqualTo(fight.NumberOfRounds);
         result.FinishTime.Should().BeGreaterThanOrEqualTo(TimeSpan.Zero);
     }
+
+    [Fact]
+    public void Simulate_ExtremeSizeMismatch_FlyweightWinsOnlyRarely()
+    {
+        var flyweightGoat = CreateEliteFlyweight();
+        var badHeavyweight = CreatePoorHeavyweight();
+        var winsByFlyweight = 0;
+
+        for (var seed = 1; seed <= 200; seed++)
+        {
+            var fight = new Fight
+            {
+                Id = Guid.NewGuid(),
+                FighterA = flyweightGoat,
+                FighterB = badHeavyweight,
+                NumberOfRounds = 3,
+                IsTitleFight = false,
+                WeightClass = WeightClass.Heavyweight
+            };
+
+            var result = BuildSimulator(seed).Simulate(fight, new SimulationOptions(RandomSeed: seed));
+            if (result.Winner.Id == flyweightGoat.Id)
+                winsByFlyweight++;
+        }
+
+        winsByFlyweight.Should().BeLessThanOrEqualTo(3);
+    }
+
+    private static Fighter CreateEliteFlyweight() => new()
+    {
+        Id = Guid.NewGuid(),
+        FirstName = "Mighty",
+        LastName = "Mouse",
+        Nickname = "GOAT",
+        Nationality = "USA",
+        WeightClass = WeightClass.Flyweight,
+        PrimaryStyle = FightingStyle.MMAFighter,
+        StyleProfiles =
+        [
+            new StyleProfile(FightingStyle.Boxer, 90, [StyleSpecialty.BoxingCombinations, StyleSpecialty.BoxingCountering, StyleSpecialty.BoxingPocketPressure]),
+            new StyleProfile(FightingStyle.Wrestler, 94, [StyleSpecialty.WrestlingTakedowns, StyleSpecialty.WrestlingTakedownDefense, StyleSpecialty.WrestlingControl]),
+            new StyleProfile(FightingStyle.BJJPractitioner, 88, [StyleSpecialty.BjjFinisher, StyleSpecialty.BjjScrambles, StyleSpecialty.BjjControl])
+        ],
+        Stance = Stance.Orthodox,
+        Physical = new PhysicalStats(160, 125, 168, 30),
+        Striking = new StrikingStats(92, 74, 95, 90, 88, 86),
+        Grappling = new GrapplingStats(94, 92, 90, 92, 92, 90),
+        Athletics = new AthleticStats(98, 72, 96, 99, 92),
+        Record = new FighterRecord(30, 3, 0)
+    };
+
+    private static Fighter CreatePoorHeavyweight() => new()
+    {
+        Id = Guid.NewGuid(),
+        FirstName = "Sloppy",
+        LastName = "Giant",
+        Nickname = "Fringe",
+        Nationality = "USA",
+        WeightClass = WeightClass.Heavyweight,
+        PrimaryStyle = FightingStyle.Striker,
+        StyleProfiles =
+        [
+            new StyleProfile(FightingStyle.Boxer, 55, [StyleSpecialty.BoxingCombinations]),
+            new StyleProfile(FightingStyle.Wrestler, 35, [StyleSpecialty.WrestlingTakedowns]),
+            new StyleProfile(FightingStyle.BJJPractitioner, 28, [StyleSpecialty.BjjControl])
+        ],
+        Stance = Stance.Orthodox,
+        Physical = new PhysicalStats(193, 245, 198, 34),
+        Striking = new StrikingStats(58, 72, 54, 48, 58, 58),
+        Grappling = new GrapplingStats(36, 42, 28, 36, 34, 38),
+        Athletics = new AthleticStats(52, 74, 42, 48, 54),
+        Record = new FighterRecord(5, 7, 0)
+    };
 }

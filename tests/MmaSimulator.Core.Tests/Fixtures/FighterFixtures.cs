@@ -15,6 +15,13 @@ public static class FighterFixtures
         Nationality = "USA",
         WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.Striker,
+        StyleProfiles =
+        [
+            new StyleProfile(
+                FightingStyle.Striker,
+                85,
+                [StyleSpecialty.KickboxingRange, StyleSpecialty.KickboxingKicks, StyleSpecialty.KarateDistance])
+        ],
         Stance = Stance.Orthodox,
         Physical = new PhysicalStats(180, 170, 183, age),
         Striking = new StrikingStats(accuracy, power, 80, 70, chin, 70),
@@ -32,6 +39,13 @@ public static class FighterFixtures
         Nationality = "USA",
         WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.Wrestler,
+        StyleProfiles =
+        [
+            new StyleProfile(
+                FightingStyle.Wrestler,
+                90,
+                [StyleSpecialty.WrestlingTakedowns, StyleSpecialty.WrestlingControl, StyleSpecialty.WrestlingTakedownDefense])
+        ],
         Stance = Stance.Orthodox,
         Physical = new PhysicalStats(178, 170, 178, age),
         Striking = new StrikingStats(65, 68, 70, 65, 78, 78),
@@ -49,6 +63,12 @@ public static class FighterFixtures
         Nationality = "USA",
         WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.MMAFighter,
+        StyleProfiles =
+        [
+            new StyleProfile(FightingStyle.Boxer, 88, [StyleSpecialty.BoxingCombinations, StyleSpecialty.BoxingCountering]),
+            new StyleProfile(FightingStyle.Wrestler, 86, [StyleSpecialty.WrestlingTakedowns, StyleSpecialty.WrestlingTakedownDefense]),
+            new StyleProfile(FightingStyle.BJJPractitioner, 82, [StyleSpecialty.BjjControl, StyleSpecialty.BjjFinisher])
+        ],
         Stance = Stance.Orthodox,
         Physical = new PhysicalStats(183, 170, 193, 30),
         Striking = new StrikingStats(92, 90, 92, 90, 90, 90),
@@ -66,6 +86,12 @@ public static class FighterFixtures
         Nationality = "USA",
         WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.MMAFighter,
+        StyleProfiles =
+        [
+            new StyleProfile(FightingStyle.Boxer, 45, [StyleSpecialty.BoxingCombinations]),
+            new StyleProfile(FightingStyle.Wrestler, 42, [StyleSpecialty.WrestlingTakedowns]),
+            new StyleProfile(FightingStyle.BJJPractitioner, 40, [StyleSpecialty.BjjControl])
+        ],
         Stance = Stance.Orthodox,
         Physical = new PhysicalStats(175, 170, 175, 22),
         Striking = new StrikingStats(45, 50, 50, 42, 48, 48),

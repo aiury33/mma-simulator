@@ -6,6 +6,10 @@ namespace MmaSimulator.Console.UI;
 
 public sealed class FightResultView
 {
+    /// <summary>
+    /// Displays the complete post-fight result sequence, including decisions and aggregate stats.
+    /// </summary>
+    /// <param name="result">The fight result to render.</param>
     public void ShowResult(FightResult result)
     {
         AnsiConsole.Status()
@@ -22,10 +26,19 @@ public sealed class FightResultView
             ShowJudgeDecisions(result);
         }
 
+        if (result.Fight.IsTitleFight)
+        {
+            ShowTitleCelebration(result);
+        }
+
         ShowFinalResult(result);
         ShowFightStats(result);
     }
 
+    /// <summary>
+    /// Displays the judges' totals when the fight reaches a decision.
+    /// </summary>
+    /// <param name="result">The fight result to render.</param>
     private static void ShowJudgeDecisions(FightResult result)
     {
         AnsiConsole.MarkupLine("\n[bold yellow]JUDGES' SCORECARDS[/]\n");
@@ -53,6 +66,10 @@ public sealed class FightResultView
         Thread.Sleep(1500);
     }
 
+    /// <summary>
+    /// Displays the winner, method, round, and finish time summary panel.
+    /// </summary>
+    /// <param name="result">The fight result to render.</param>
     private static void ShowFinalResult(FightResult result)
     {
         var methodDisplay = result.Method switch
@@ -85,6 +102,51 @@ public sealed class FightResultView
         AnsiConsole.WriteLine();
     }
 
+    /// <summary>
+    /// Displays a title-fight celebration HUD with an ASCII-style championship belt.
+    /// </summary>
+    /// <param name="result">The title-fight result to render.</param>
+    private static void ShowTitleCelebration(FightResult result)
+    {
+        var winnerName = Markup.Escape(result.Winner.FullName.ToUpperInvariant());
+        var division = Markup.Escape(result.Fight.WeightClass.ToString().ToUpperInvariant());
+
+        var beltArt = string.Join('\n', new[]
+        {
+            "[yellow]============================================================[/]",
+            "[yellow]==================== ########## ====================[/]",
+            "[yellow]=============== ###################### =============[/]",
+            "[black on yellow]==================== UFC WORLD CHAMPION ====================[/]",
+            "[black on yellow]======================= GOLD BELT ========================[/]",
+            $"[black on yellow]==================== {division,-30} ====================[/]",
+            "[yellow]=============== ###################### =============[/]",
+            "[yellow]==================== ########## ====================[/]",
+            "[yellow]============================================================[/]"
+        });
+
+        var content = new Markup(
+            beltArt + "\n\n" +
+            $"[bold yellow]{winnerName}[/]\n" +
+            "[bold white]WINS THE BELT![/]\n" +
+            "[yellow]The arena erupts as the new champion celebrates![/]");
+
+        var panel = new Panel(content)
+        {
+            Header = new PanelHeader("[bold yellow on black] TITLE FIGHT [/]", Justify.Center),
+            Border = BoxBorder.Double,
+            BorderStyle = new Style(Color.Yellow),
+            Padding = new Padding(2, 1)
+        };
+
+        AnsiConsole.Write(panel);
+        AnsiConsole.WriteLine();
+        Thread.Sleep(1400);
+    }
+
+    /// <summary>
+    /// Displays aggregate fight statistics for both competitors.
+    /// </summary>
+    /// <param name="result">The fight result to render.</param>
     private static void ShowFightStats(FightResult result)
     {
         var s = result.StatsSummary;

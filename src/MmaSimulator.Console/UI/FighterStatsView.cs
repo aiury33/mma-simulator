@@ -5,6 +5,9 @@ namespace MmaSimulator.Console.UI;
 
 public sealed class FighterStatsView
 {
+    /// <summary>
+    /// Displays a pre-fight side-by-side comparison of both fighters.
+    /// </summary>
     public void ShowComparison(Fighter a, Fighter b)
     {
         AnsiConsole.Clear();
@@ -18,7 +21,7 @@ public sealed class FighterStatsView
             .AddColumn(new TableColumn($"[bold yellow]{b.FullName}[/]").Centered());
 
         table.AddRow("Record", $"[cyan]{a.Record.Display}[/]", $"[yellow]{b.Record.Display}[/]");
-        table.AddRow("Style", $"[cyan]{a.PrimaryStyle}[/]", $"[yellow]{b.PrimaryStyle}[/]");
+        table.AddRow("Style", $"[cyan]{Markup.Escape(a.StyleSummary)}[/]", $"[yellow]{Markup.Escape(b.StyleSummary)}[/]");
         table.AddRow("Stance", $"[cyan]{a.Stance}[/]", $"[yellow]{b.Stance}[/]");
         table.AddRow("Nationality", $"[cyan]{a.Nationality}[/]", $"[yellow]{b.Nationality}[/]");
         table.AddRow("Height", $"[cyan]{a.Physical.HeightCm}cm[/]", $"[yellow]{b.Physical.HeightCm}cm[/]");
@@ -46,6 +49,9 @@ public sealed class FighterStatsView
         AnsiConsole.WriteLine();
     }
 
+    /// <summary>
+    /// Adds a single comparative stat row to the matchup table.
+    /// </summary>
     private static void AddStatRow(Table table, string label, int valueA, int valueB)
     {
         var barA = BuildBar(valueA, "[cyan]");
@@ -53,6 +59,9 @@ public sealed class FighterStatsView
         table.AddRow(label, $"{barA} [grey]{valueA}[/]", $"{barB} [grey]{valueB}[/]");
     }
 
+    /// <summary>
+    /// Builds a simple ten-segment text bar for a stat value.
+    /// </summary>
     private static string BuildBar(int value, string color)
     {
         var filled = (int)Math.Round(value / 10.0);

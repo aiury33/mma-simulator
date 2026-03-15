@@ -68,6 +68,13 @@ public sealed class StaminaEngineTests
             Nationality = "X",
             WeightClass = MmaSimulator.Core.Enums.WeightClass.Welterweight,
             PrimaryStyle = MmaSimulator.Core.Enums.FightingStyle.Striker,
+            StyleProfiles =
+            [
+                new MmaSimulator.Core.Models.StyleProfile(
+                    MmaSimulator.Core.Enums.FightingStyle.Striker,
+                    50,
+                    [MmaSimulator.Core.Enums.StyleSpecialty.KickboxingRange])
+            ],
             Stance = MmaSimulator.Core.Enums.Stance.Orthodox,
             Physical = new MmaSimulator.Core.ValueObjects.PhysicalStats(175, 170, 175, 28),
             Striking = new MmaSimulator.Core.ValueObjects.StrikingStats(70, 70, 70, 70, 70, 70),

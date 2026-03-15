@@ -8,11 +8,17 @@ public sealed class NarrationBuilder
 {
     private readonly IRandomProvider _random;
 
+    /// <summary>
+    /// Creates the narration builder with the random provider used to pick templates.
+    /// </summary>
     public NarrationBuilder(IRandomProvider random)
     {
         _random = random;
     }
 
+    /// <summary>
+    /// Builds narration text for a striking event.
+    /// </summary>
     public string BuildForStrike(FightEvent ev)
     {
         var actor = ev.Actor.FullName;
@@ -33,10 +39,16 @@ public sealed class NarrationBuilder
         return $"{actor} lands a strike on {target}.";
     }
 
+    /// <summary>
+    /// Builds narration text for a grappling event.
+    /// </summary>
     public string BuildForGrapple(FightEvent ev)
     {
         var actor = ev.Actor.FullName;
         var target = ev.Target?.FullName ?? string.Empty;
+
+        if (ev.GrappleAction.HasValue && NarrationTemplates.GrappleActionTemplates.TryGetValue(ev.GrappleAction.Value, out var actionTemplates))
+            return NarrationTemplates.Format(_random.Choose(actionTemplates), actor, target);
 
         return ev.Type switch
         {

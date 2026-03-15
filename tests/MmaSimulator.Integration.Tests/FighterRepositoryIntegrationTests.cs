@@ -66,4 +66,68 @@ public sealed class FighterRepositoryIntegrationTests
 
         found.Should().BeNull();
     }
+
+    [Fact]
+    public void GetAll_AllFightersHaveCompositeStyleProfiles()
+    {
+        var repo = BuildRepository();
+
+        repo.GetAll().Should().AllSatisfy(fighter =>
+        {
+            fighter.StyleProfiles.Should().NotBeEmpty();
+            fighter.GetStyleProficiency(fighter.PrimaryStyle).Should().BeGreaterThan(0);
+        });
+    }
+
+    [Fact]
+    public void KeyFighters_HaveExpectedStyleSubstyleProfiles()
+    {
+        var repo = BuildRepository();
+        var all = repo.GetAll();
+
+        var jonJones = all.Single(f => f.LastName == "Jones");
+        jonJones.GetStyleProficiency(FightingStyle.MuayThai).Should().BeGreaterThanOrEqualTo(90);
+        jonJones.GetStyleProficiency(FightingStyle.Kickboxer).Should().BeGreaterThanOrEqualTo(85);
+        jonJones.GetStyleProficiency(FightingStyle.Wrestler).Should().BeGreaterThanOrEqualTo(85);
+        jonJones.HasSpecialty(StyleSpecialty.MuayThaiElbows).Should().BeTrue();
+        jonJones.HasSpecialty(StyleSpecialty.MuayThaiKnees).Should().BeTrue();
+        jonJones.HasSpecialty(StyleSpecialty.ObliqueKicks).Should().BeTrue();
+        jonJones.HasSpecialty(StyleSpecialty.WrestlingTakedownDefense).Should().BeTrue();
+
+        var alexPereira = all.Single(f => f.LastName == "Pereira");
+        alexPereira.GetStyleProficiency(FightingStyle.Kickboxer).Should().BeGreaterThanOrEqualTo(95);
+        alexPereira.HasSpecialty(StyleSpecialty.KickboxingRange).Should().BeTrue();
+        alexPereira.HasSpecialty(StyleSpecialty.KickboxingKicks).Should().BeTrue();
+
+        var charles = all.Single(f => f.LastName == "Oliveira");
+        charles.GetStyleProficiency(FightingStyle.BJJPractitioner).Should().BeGreaterThanOrEqualTo(95);
+        charles.GetStyleProficiency(FightingStyle.MuayThai).Should().BeGreaterThanOrEqualTo(80);
+        charles.HasSpecialty(StyleSpecialty.BjjFinisher).Should().BeTrue();
+        charles.HasSpecialty(StyleSpecialty.Armbar).Should().BeTrue();
+
+        var khamzat = all.Single(f => f.LastName == "Chimaev");
+        khamzat.GetStyleProficiency(FightingStyle.Wrestler).Should().BeGreaterThanOrEqualTo(95);
+        khamzat.HasSpecialty(StyleSpecialty.WrestlingTakedowns).Should().BeTrue();
+        khamzat.HasSpecialty(StyleSpecialty.BjjFinisher).Should().BeTrue();
+
+        var islam = all.Single(f => f.LastName == "Makhachev");
+        islam.HasSpecialty(StyleSpecialty.DarceChoke).Should().BeTrue();
+        islam.HasSpecialty(StyleSpecialty.BjjGuardPassing).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(WeightClass.Flyweight)]
+    [InlineData(WeightClass.Bantamweight)]
+    [InlineData(WeightClass.Featherweight)]
+    [InlineData(WeightClass.Lightweight)]
+    [InlineData(WeightClass.Welterweight)]
+    [InlineData(WeightClass.Middleweight)]
+    [InlineData(WeightClass.LightHeavyweight)]
+    [InlineData(WeightClass.Heavyweight)]
+    public void MensDivisions_HaveAtLeastSixteenRankedFighters(WeightClass weightClass)
+    {
+        var repo = BuildRepository();
+
+        repo.GetByWeightClass(weightClass).Count.Should().BeGreaterThanOrEqualTo(16);
+    }
 }

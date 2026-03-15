@@ -3,9 +3,12 @@ bin/
 obj/
 *.user
 *.suo
+*.userprefs
+*.rsuser
 .vs/
 _ReSharper*/
 *.DotSettings.user
+.dotnet*/
 
 ## Build results
 [Dd]ebug/
@@ -20,6 +23,10 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+artifacts/
+publish/
+out/
+*.log
 
 ## NuGet
 *.nupkg
@@ -28,6 +35,7 @@ bld/
 !**/packages/build/
 *.nuget.props
 *.nuget.targets
+.nuget/
 
 ## Test results
 [Tt]est[Rr]esult*/
@@ -35,6 +43,8 @@ bld/
 TestResult.xml
 coverage*.xml
 coverage*.json
+coverage/
+BenchmarkDotNet.Artifacts/
 
 ## OS
 .DS_Store
@@ -43,3 +53,6 @@ Thumbs.db
 ## JetBrains Rider
 .idea/
 *.sln.iml
+
+## Local tooling
+.claude/

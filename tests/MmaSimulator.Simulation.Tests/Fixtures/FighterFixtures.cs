@@ -12,6 +12,13 @@ public static class FighterFixtures
         FirstName = "Test", LastName = "Striker", Nickname = "The Puncher",
         Nationality = "USA", WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.Striker, Stance = Stance.Orthodox,
+        StyleProfiles =
+        [
+            new StyleProfile(
+                FightingStyle.Striker,
+                85,
+                [StyleSpecialty.KickboxingRange, StyleSpecialty.KickboxingKicks, StyleSpecialty.KarateDistance])
+        ],
         Physical = new PhysicalStats(180, 170, 183, age),
         Striking = new StrikingStats(accuracy, power, 80, 70, chin, 70),
         Grappling = new GrapplingStats(50, 55, 45, 50, 48, 52),
@@ -25,6 +32,13 @@ public static class FighterFixtures
         FirstName = "Test", LastName = "Wrestler", Nickname = "The Grappler",
         Nationality = "USA", WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.Wrestler, Stance = Stance.Orthodox,
+        StyleProfiles =
+        [
+            new StyleProfile(
+                FightingStyle.Wrestler,
+                90,
+                [StyleSpecialty.WrestlingTakedowns, StyleSpecialty.WrestlingControl, StyleSpecialty.WrestlingTakedownDefense])
+        ],
         Physical = new PhysicalStats(178, 170, 178, 28),
         Striking = new StrikingStats(65, 68, 70, 65, 78, 78),
         Grappling = new GrapplingStats(tdAccuracy, 80, 72, 80, 88, 78),
@@ -38,6 +52,12 @@ public static class FighterFixtures
         FirstName = "Elite", LastName = "Champion", Nickname = "GOAT",
         Nationality = "USA", WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.MMAFighter, Stance = Stance.Orthodox,
+        StyleProfiles =
+        [
+            new StyleProfile(FightingStyle.Boxer, 88, [StyleSpecialty.BoxingCombinations, StyleSpecialty.BoxingCountering]),
+            new StyleProfile(FightingStyle.Wrestler, 86, [StyleSpecialty.WrestlingTakedowns, StyleSpecialty.WrestlingTakedownDefense]),
+            new StyleProfile(FightingStyle.BJJPractitioner, 82, [StyleSpecialty.BjjControl, StyleSpecialty.BjjFinisher])
+        ],
         Physical = new PhysicalStats(183, 170, 193, 30),
         Striking = new StrikingStats(92, 90, 92, 90, 90, 90),
         Grappling = new GrapplingStats(92, 90, 88, 88, 92, 88),
@@ -51,6 +71,12 @@ public static class FighterFixtures
         FirstName = "Novice", LastName = "Fighter", Nickname = "The Beginner",
         Nationality = "USA", WeightClass = WeightClass.Welterweight,
         PrimaryStyle = FightingStyle.MMAFighter, Stance = Stance.Orthodox,
+        StyleProfiles =
+        [
+            new StyleProfile(FightingStyle.Boxer, 45, [StyleSpecialty.BoxingCombinations]),
+            new StyleProfile(FightingStyle.Wrestler, 42, [StyleSpecialty.WrestlingTakedowns]),
+            new StyleProfile(FightingStyle.BJJPractitioner, 40, [StyleSpecialty.BjjControl])
+        ],
         Physical = new PhysicalStats(175, 170, 175, 22),
         Striking = new StrikingStats(45, 50, 50, 42, 48, 48),
         Grappling = new GrapplingStats(42, 45, 40, 42, 44, 44),
