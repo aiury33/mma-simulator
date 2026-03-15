@@ -85,7 +85,7 @@ public sealed class FighterRepositoryIntegrationTests
         var repo = BuildRepository();
         var all = repo.GetAll();
 
-        var jonJones = all.Single(f => f.LastName == "Jones");
+        var jonJones = all.Single(f => f.FirstName == "Jon" && f.LastName == "Jones");
         jonJones.GetStyleProficiency(FightingStyle.MuayThai).Should().BeGreaterThanOrEqualTo(90);
         jonJones.GetStyleProficiency(FightingStyle.Kickboxer).Should().BeGreaterThanOrEqualTo(85);
         jonJones.GetStyleProficiency(FightingStyle.Wrestler).Should().BeGreaterThanOrEqualTo(85);
@@ -94,23 +94,23 @@ public sealed class FighterRepositoryIntegrationTests
         jonJones.HasSpecialty(StyleSpecialty.ObliqueKicks).Should().BeTrue();
         jonJones.HasSpecialty(StyleSpecialty.WrestlingTakedownDefense).Should().BeTrue();
 
-        var alexPereira = all.Single(f => f.LastName == "Pereira");
+        var alexPereira = all.Single(f => f.FirstName == "Alex" && f.LastName == "Pereira");
         alexPereira.GetStyleProficiency(FightingStyle.Kickboxer).Should().BeGreaterThanOrEqualTo(95);
         alexPereira.HasSpecialty(StyleSpecialty.KickboxingRange).Should().BeTrue();
         alexPereira.HasSpecialty(StyleSpecialty.KickboxingKicks).Should().BeTrue();
 
-        var charles = all.Single(f => f.LastName == "Oliveira");
+        var charles = all.Single(f => f.FirstName == "Charles" && f.LastName == "Oliveira");
         charles.GetStyleProficiency(FightingStyle.BJJPractitioner).Should().BeGreaterThanOrEqualTo(95);
         charles.GetStyleProficiency(FightingStyle.MuayThai).Should().BeGreaterThanOrEqualTo(80);
         charles.HasSpecialty(StyleSpecialty.BjjFinisher).Should().BeTrue();
         charles.HasSpecialty(StyleSpecialty.Armbar).Should().BeTrue();
 
-        var khamzat = all.Single(f => f.LastName == "Chimaev");
+        var khamzat = all.Single(f => f.FirstName == "Khamzat" && f.LastName == "Chimaev");
         khamzat.GetStyleProficiency(FightingStyle.Wrestler).Should().BeGreaterThanOrEqualTo(95);
         khamzat.HasSpecialty(StyleSpecialty.WrestlingTakedowns).Should().BeTrue();
         khamzat.HasSpecialty(StyleSpecialty.BjjFinisher).Should().BeTrue();
 
-        var islam = all.Single(f => f.LastName == "Makhachev");
+        var islam = all.Single(f => f.FirstName == "Islam" && f.LastName == "Makhachev");
         islam.HasSpecialty(StyleSpecialty.DarceChoke).Should().BeTrue();
         islam.HasSpecialty(StyleSpecialty.BjjGuardPassing).Should().BeTrue();
     }

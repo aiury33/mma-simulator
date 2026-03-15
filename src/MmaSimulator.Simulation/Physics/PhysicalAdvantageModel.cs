@@ -53,14 +53,19 @@ internal static class PhysicalAdvantageModel
             multiplier += shortReachCompensation * 1.3;
         }
 
-        return Math.Clamp(multiplier, 0.60, 1.45);
+        multiplier *= GetExtremeMismatchOffensePenalty(attacker, defender, mildFloor: 0.55, severeFloor: 0.26, catastrophicFloor: 0.12);
+        return Math.Clamp(multiplier, 0.12, 1.45);
     }
 
     /// <summary>
     /// Applies physical advantages that make defending strikes easier or harder.
     /// </summary>
     public static double StrikeDefenseMultiplier(FighterState defender, FighterState attacker)
-        => BuildPhysicalEdge(defender, attacker, weightFactor: 0.0014, reachFactor: 0.0020, heightFactor: 0.0006, strengthFactor: 0.0010, min: 0.75, max: 1.25);
+    {
+        var multiplier = BuildPhysicalEdge(defender, attacker, weightFactor: 0.0014, reachFactor: 0.0020, heightFactor: 0.0006, strengthFactor: 0.0010, min: 0.75, max: 1.25);
+        multiplier *= GetExtremeMismatchDefenseBonus(defender, attacker);
+        return Math.Clamp(multiplier, 0.75, 1.45);
+    }
 
     /// <summary>
     /// Applies style-aware physical modifiers to strike damage.
@@ -92,7 +97,8 @@ internal static class PhysicalAdvantageModel
             multiplier += insideBonus * 1.35;
         }
 
-        return Math.Clamp(multiplier, 0.55, 1.85);
+        multiplier *= GetExtremeMismatchOffensePenalty(attacker, defender, mildFloor: 0.50, severeFloor: 0.18, catastrophicFloor: 0.08);
+        return Math.Clamp(multiplier, 0.08, 1.85);
     }
 
     /// <summary>
@@ -111,7 +117,11 @@ internal static class PhysicalAdvantageModel
     /// Estimates the physical contribution to knockdown risk.
     /// </summary>
     public static double KnockdownThreatMultiplier(FighterState attacker, FighterState defender)
-        => BuildPhysicalEdge(attacker, defender, weightFactor: 0.0042, reachFactor: 0.0, heightFactor: 0.0008, strengthFactor: 0.0024, min: 0.45, max: 1.90);
+    {
+        var multiplier = BuildPhysicalEdge(attacker, defender, weightFactor: 0.0042, reachFactor: 0.0, heightFactor: 0.0008, strengthFactor: 0.0024, min: 0.45, max: 1.90);
+        multiplier *= GetExtremeMismatchOffensePenalty(attacker, defender, mildFloor: 0.45, severeFloor: 0.12, catastrophicFloor: 0.04);
+        return Math.Clamp(multiplier, 0.04, 1.90);
+    }
 
     /// <summary>
     /// Applies physical leverage and level-change modifiers to takedown success.
@@ -121,7 +131,9 @@ internal static class PhysicalAdvantageModel
         var baseMultiplier = BuildPhysicalEdge(attacker, defender, weightFactor: 0.0085, reachFactor: 0.0, heightFactor: 0.0, strengthFactor: 0.0060, min: 0.08, max: 4.00);
         var heightDiff = attacker.Fighter.Physical.HeightCm - defender.Fighter.Physical.HeightCm;
         var levelChangeBonus = Math.Clamp(-heightDiff * 0.010, -0.18, 0.25);
-        return Math.Clamp(baseMultiplier * (1.0 + levelChangeBonus), 0.08, 4.25);
+        var multiplier = baseMultiplier * (1.0 + levelChangeBonus);
+        multiplier *= GetExtremeMismatchOffensePenalty(attacker, defender, mildFloor: 0.48, severeFloor: 0.14, catastrophicFloor: 0.06);
+        return Math.Clamp(multiplier, 0.06, 4.25);
     }
 
     /// <summary>
@@ -132,7 +144,9 @@ internal static class PhysicalAdvantageModel
         var baseMultiplier = BuildPhysicalEdge(attacker, defender, weightFactor: 0.0080, reachFactor: 0.0, heightFactor: 0.0, strengthFactor: 0.0050, min: 0.10, max: 4.00);
         var heightDiff = attacker.Fighter.Physical.HeightCm - defender.Fighter.Physical.HeightCm;
         var leverageBonus = Math.Clamp(-heightDiff * 0.008, -0.15, 0.18);
-        return Math.Clamp(baseMultiplier * (1.0 + leverageBonus), 0.10, 4.20);
+        var multiplier = baseMultiplier * (1.0 + leverageBonus);
+        multiplier *= GetExtremeMismatchOffensePenalty(attacker, defender, mildFloor: 0.55, severeFloor: 0.16, catastrophicFloor: 0.07);
+        return Math.Clamp(multiplier, 0.07, 4.20);
     }
 
     /// <summary>
@@ -143,14 +157,20 @@ internal static class PhysicalAdvantageModel
         var baseMultiplier = BuildPhysicalEdge(fighter, opponent, weightFactor: 0.0070, reachFactor: 0.0, heightFactor: 0.0, strengthFactor: 0.0040, min: 0.12, max: 2.20);
         var heightDiff = fighter.Fighter.Physical.HeightCm - opponent.Fighter.Physical.HeightCm;
         var lowBaseBonus = Math.Clamp(-heightDiff * 0.007, -0.12, 0.15);
-        return Math.Clamp(baseMultiplier * (1.0 + lowBaseBonus), 0.12, 2.30);
+        var multiplier = baseMultiplier * (1.0 + lowBaseBonus);
+        multiplier *= GetExtremeMismatchOffensePenalty(fighter, opponent, mildFloor: 0.72, severeFloor: 0.40, catastrophicFloor: 0.22);
+        return Math.Clamp(multiplier, 0.12, 2.30);
     }
 
     /// <summary>
     /// Applies physical modifiers to clinch entries and tie-up control.
     /// </summary>
     public static double ClinchEntryMultiplier(FighterState attacker, FighterState defender)
-        => BuildPhysicalEdge(attacker, defender, weightFactor: 0.0075, reachFactor: 0.003, heightFactor: 0.0020, strengthFactor: 0.0045, min: 0.10, max: 2.80);
+    {
+        var multiplier = BuildPhysicalEdge(attacker, defender, weightFactor: 0.0075, reachFactor: 0.003, heightFactor: 0.0020, strengthFactor: 0.0045, min: 0.10, max: 2.80);
+        multiplier *= GetExtremeMismatchOffensePenalty(attacker, defender, mildFloor: 0.58, severeFloor: 0.24, catastrophicFloor: 0.12);
+        return Math.Clamp(multiplier, 0.10, 2.80);
+    }
 
     /// <summary>
     /// Determines whether the matchup should be treated as an extreme physical mismatch.
@@ -169,7 +189,9 @@ internal static class PhysicalAdvantageModel
         var reachTerm = Math.Clamp((actor.Fighter.Physical.ReachCm - opponent.Fighter.Physical.ReachCm) / 120.0, -0.20, 0.20);
         var effectiveWeightDiff = GetEffectiveWeightDifference(actor, opponent);
         var physicalTerm = Math.Clamp(effectiveWeightDiff / 450.0, -0.12, 0.18);
-        return Math.Max(0.10, (strikingSpeed + agility) * 0.5 * stamina * actor.EffectiveMovementMultiplier * (1.0 + reachTerm + physicalTerm));
+        var score = (strikingSpeed + agility) * 0.5 * stamina * actor.EffectiveMovementMultiplier * (1.0 + reachTerm + physicalTerm);
+        score *= GetExtremeMismatchOffensePenalty(actor, opponent, mildFloor: 0.80, severeFloor: 0.55, catastrophicFloor: 0.38);
+        return Math.Max(0.06, score);
     }
 
     /// <summary>
@@ -240,4 +262,61 @@ internal static class PhysicalAdvantageModel
         <= 185 => 2, // Welterweight / Middleweight
         _ => 3       // Light Heavyweight / Heavyweight
     };
+
+    /// <summary>
+    /// Applies a nonlinear penalty when the acting fighter is massively smaller than the opponent.
+    /// </summary>
+    private static double GetExtremeMismatchOffensePenalty(
+        FighterState actor,
+        FighterState opponent,
+        double mildFloor,
+        double severeFloor,
+        double catastrophicFloor)
+    {
+        var weightDiff = actor.Fighter.Physical.WeightLbs - opponent.Fighter.Physical.WeightLbs;
+        if (weightDiff >= 0)
+            return 1.0;
+
+        var absDiff = Math.Abs(weightDiff);
+        var bandGap = Math.Abs(GetWeightBand(actor.Fighter.Physical.WeightLbs) - GetWeightBand(opponent.Fighter.Physical.WeightLbs));
+
+        if (absDiff < 30)
+            return 1.0;
+
+        if (bandGap <= 1 && absDiff < 45)
+            return Math.Clamp(1.0 - (absDiff - 30) * 0.012, mildFloor, 1.0);
+
+        if (bandGap == 1)
+            return Math.Clamp(0.82 - (absDiff - 45) * 0.010, mildFloor, 1.0);
+
+        if (bandGap == 2)
+            return Math.Clamp(0.58 - Math.Max(0, absDiff - 55) * 0.006, severeFloor, 1.0);
+
+        return Math.Clamp(0.30 - Math.Max(0, absDiff - 85) * 0.004, catastrophicFloor, 1.0);
+    }
+
+    /// <summary>
+    /// Applies a bonus when the acting fighter is massively larger than the opponent.
+    /// </summary>
+    private static double GetExtremeMismatchDefenseBonus(FighterState actor, FighterState opponent)
+    {
+        var weightDiff = actor.Fighter.Physical.WeightLbs - opponent.Fighter.Physical.WeightLbs;
+        if (weightDiff <= 0)
+            return 1.0;
+
+        var absDiff = weightDiff;
+        var bandGap = Math.Abs(GetWeightBand(actor.Fighter.Physical.WeightLbs) - GetWeightBand(opponent.Fighter.Physical.WeightLbs));
+
+        if (absDiff < 45)
+            return 1.0;
+
+        var bonus = bandGap switch
+        {
+            1 => 1.04 + Math.Min(0.08, (absDiff - 45) * 0.002),
+            2 => 1.12 + Math.Min(0.18, (absDiff - 55) * 0.003),
+            _ => 1.28 + Math.Min(0.28, (absDiff - 85) * 0.004)
+        };
+
+        return Math.Clamp(bonus, 1.0, 1.56);
+    }
 }
