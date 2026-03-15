@@ -79,9 +79,9 @@ public sealed class RoundSimulator : IRoundSimulator
 
     private static readonly StrikeType[] KickboxingStandingStrikes =
     [
-        StrikeType.Jab, StrikeType.Cross, StrikeType.Cross,
-        StrikeType.Hook, StrikeType.Overhand, StrikeType.BodyKick,
-        StrikeType.Roundhouse, StrikeType.CalfKick, StrikeType.HeadKick, StrikeType.BodyShot, StrikeType.Teep
+        StrikeType.Jab, StrikeType.Jab, StrikeType.Cross,
+        StrikeType.Hook, StrikeType.BodyKick,
+        StrikeType.Roundhouse, StrikeType.CalfKick, StrikeType.BodyShot, StrikeType.Teep, StrikeType.Teep
     ];
 
     private static readonly StrikeType[] MuayThaiStandingStrikes =
@@ -770,7 +770,10 @@ public sealed class RoundSimulator : IRoundSimulator
     {
         var speed = actor.Fighter.Striking.Speed / 100.0;
         var physical = PhysicalAdvantageModel.StrikeAccuracyMultiplier(actor, opponent);
-        return Math.Clamp(StandingStrikeProb * (0.8 + speed * 0.35) * actor.EffectiveMovementMultiplier * Math.Clamp(physical, 0.55, 1.35), 0.04, 0.28);
+        var technical = PhysicalAdvantageModel.StandingTechnicalEdgeMultiplier(actor, opponent);
+        var output = PhysicalAdvantageModel.StandingOutputMultiplier(actor, opponent);
+        var tempoPhysical = 1.0 + (Math.Clamp(physical, 0.80, 1.20) - 1.0) * 0.30;
+        return Math.Clamp(StandingStrikeProb * (0.8 + speed * 0.35) * actor.EffectiveMovementMultiplier * tempoPhysical * technical * output, 0.04, 0.28);
     }
 
     /// <summary>
@@ -841,6 +844,11 @@ public sealed class RoundSimulator : IRoundSimulator
             strikeMultiplier += exploitStrength * (0.35 + iq * 0.45);
             takedownMultiplier -= exploitStrength * 0.18;
             clinchMultiplier -= exploitStrength * 0.10;
+        }
+        else if (strikingGap <= -8)
+        {
+            var respectStrength = Math.Min(1.0, Math.Abs(strikingGap + 8) / 18.0);
+            strikeMultiplier -= respectStrength * (0.12 + iq * 0.10);
         }
 
         return new StandingStrategy(
@@ -926,6 +934,22 @@ public sealed class RoundSimulator : IRoundSimulator
             pool.Add(StrikeType.HeadKick);
             pool.Add(StrikeType.BodyKick);
             pool.Add(StrikeType.CalfKick);
+        }
+
+        if (fighter.HasSpecialty(StyleSpecialty.KickboxingRange))
+        {
+            pool.Add(StrikeType.Jab);
+            pool.Add(StrikeType.Jab);
+            pool.Add(StrikeType.Teep);
+            pool.Add(StrikeType.CalfKick);
+        }
+
+        if (fighter.HasSpecialty(StyleSpecialty.KickboxingPressure))
+        {
+            pool.Add(StrikeType.Cross);
+            pool.Add(StrikeType.Hook);
+            pool.Add(StrikeType.Overhand);
+            pool.Add(StrikeType.BodyShot);
         }
 
         if (fighter.HasSpecialty(StyleSpecialty.KarateDistance) || fighter.HasSpecialty(StyleSpecialty.MuayThaiTeeps))

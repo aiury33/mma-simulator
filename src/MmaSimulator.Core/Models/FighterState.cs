@@ -12,6 +12,7 @@ public sealed class FighterState
         Fighter = fighter;
         CurrentStamina = 1.0;
         CurrentPosition = FightPosition.Standing;
+        CurrentWeightLbs = fighter.Physical.WeightLbs;
     }
 
     public Fighter Fighter { get; }
@@ -24,6 +25,7 @@ public sealed class FighterState
     public FightPosition CurrentPosition { get; set; }
     public int KnockdownsThisFight { get; set; }
     public int GroundedTicksRemaining { get; set; }
+    public double CurrentWeightLbs { get; set; }
 
     public double EffectiveStrikeAccuracy
     {

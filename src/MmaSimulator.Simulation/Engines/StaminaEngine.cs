@@ -32,7 +32,7 @@ public sealed class StaminaEngine : IStaminaEngine
 
         var cardioFactor = 1.0 - (fighter.Fighter.Athletics.Cardio / 100.0) * 0.6;
         var ageFactor = 1.0 + Math.Max(0, (fighter.Fighter.Physical.Age - 30) * 0.01);
-        var weightFactor = 1.0 + Math.Max(0, fighter.Fighter.Physical.WeightLbs - 170) / 500.0;
+        var weightFactor = 1.0 + Math.Max(0.0, fighter.CurrentWeightLbs - 170.0) / 500.0;
 
         return baseDrain * cardioFactor * ageFactor * weightFactor;
     }
@@ -47,7 +47,7 @@ public sealed class StaminaEngine : IStaminaEngine
         var ageRecoveryPenalty = Math.Max(0, (fighter.Fighter.Physical.Age - 28) * 0.005);
         var bodyDamagePenalty = fighter.AccumulatedBodyDamage / 80.0;
         var headDamagePenalty = fighter.AccumulatedHeadDamage / 100.0;
-        var heavyweightPenalty = Math.Max(0, fighter.Fighter.Physical.WeightLbs - 205) / 600.0;
+        var heavyweightPenalty = Math.Max(0.0, fighter.CurrentWeightLbs - 205.0) / 600.0;
 
         return (baseRecovery + cardioBonus - ageRecoveryPenalty)
             * (1.0 - bodyDamagePenalty)

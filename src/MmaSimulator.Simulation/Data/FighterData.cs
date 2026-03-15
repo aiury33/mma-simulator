@@ -565,14 +565,14 @@ internal static class FighterData
             Nationality = "Brazil", WeightClass = WeightClass.LightHeavyweight,
             PrimaryStyle = FightingStyle.Kickboxer, Stance = Stance.Orthodox,
             StyleProfiles = Styles(
-                Profile(FightingStyle.Kickboxer, 98, StyleSpecialty.KickboxingRange, StyleSpecialty.KickboxingKicks, StyleSpecialty.KickboxingPressure),
-                Profile(FightingStyle.Boxer, 86, StyleSpecialty.BoxingCountering, StyleSpecialty.BoxingCombinations)),
+                Profile(FightingStyle.Kickboxer, 99, StyleSpecialty.KickboxingRange, StyleSpecialty.KickboxingKicks, StyleSpecialty.KickboxingPressure),
+                Profile(FightingStyle.Boxer, 89, StyleSpecialty.BoxingCountering, StyleSpecialty.BoxingCombinations)),
             Physical = new PhysicalStats(193, 205, 198, 37),
-            Striking  = new StrikingStats(92, 98, 84, 84, 86, 84),
+            Striking  = new StrikingStats(95, 99, 88, 90, 88, 86),
             Grappling = new GrapplingStats(60, 70, 58, 66, 60, 72),
-            Athletics = new AthleticStats(86, 92, 84, 86, 90),
+            Athletics = new AthleticStats(88, 92, 88, 88, 92),
             Record = new FighterRecord(12, 2, 0),
-            FightIq = 84
+            FightIq = 88
         },
         new Fighter
         {
@@ -663,12 +663,12 @@ internal static class FighterData
             Nationality = "France", WeightClass = WeightClass.Heavyweight,
             PrimaryStyle = FightingStyle.Kickboxer, Stance = Stance.Orthodox,
             StyleProfiles = Styles(
-                Profile(FightingStyle.Kickboxer, 90, StyleSpecialty.KickboxingRange, StyleSpecialty.KickboxingKicks),
-                Profile(FightingStyle.MuayThai, 80, StyleSpecialty.MuayThaiKnees, StyleSpecialty.MuayThaiTeeps)),
+                Profile(FightingStyle.Kickboxer, 88, StyleSpecialty.KickboxingRange, StyleSpecialty.KickboxingKicks),
+                Profile(FightingStyle.MuayThai, 78, StyleSpecialty.MuayThaiKnees, StyleSpecialty.MuayThaiTeeps)),
             Physical = new PhysicalStats(196, 250, 211, 34),
-            Striking  = new StrikingStats(80, 78, 87, 83, 78, 76),
+            Striking  = new StrikingStats(78, 77, 84, 80, 78, 76),
             Grappling = new GrapplingStats(66, 62, 60, 64, 62, 66),
-            Athletics = new AthleticStats(82, 78, 84, 84, 78),
+            Athletics = new AthleticStats(82, 78, 82, 84, 78),
             Record = new FighterRecord(12, 2, 0),
             FightIq = 80
         },

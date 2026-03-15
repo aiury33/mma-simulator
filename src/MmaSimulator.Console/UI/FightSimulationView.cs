@@ -176,9 +176,9 @@ public sealed class FightSimulationView
 
     public sealed class FightHealthTracker
     {
-        private const double HeadPool = 36.0;
-        private const double BodyPool = 42.0;
-        private const double LegPool = 34.0;
+        private const double HeadPool = 24.0;
+        private const double BodyPool = 30.0;
+        private const double LegPool = 26.0;
 
         private readonly Fighter _fighterA;
         private readonly Fighter _fighterB;

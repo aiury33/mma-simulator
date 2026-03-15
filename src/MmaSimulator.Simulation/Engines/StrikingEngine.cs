@@ -48,9 +48,9 @@ public sealed class StrikingEngine : IStrikingEngine
             [StrikeType.SpinningElbow]   = 1.30,
             [StrikeType.KneeBody]        = 1.00,
             [StrikeType.KneeHead]        = 1.25,
-            [StrikeType.FrontKick]       = 0.65,
-            [StrikeType.Teep]            = 0.60,
-            [StrikeType.BodyKick]        = 1.00,
+            [StrikeType.FrontKick]       = 0.50,
+            [StrikeType.Teep]            = 0.46,
+            [StrikeType.BodyKick]        = 0.82,
             [StrikeType.LowKick]         = 0.75,
             [StrikeType.CalfKick]        = 0.70,
             [StrikeType.ObliqueKick]     = 0.55,
@@ -158,13 +158,14 @@ public sealed class StrikingEngine : IStrikingEngine
     /// </summary>
     private double ComputeEffectiveAccuracy(FighterState attacker, FighterState defender)
     {
-        var base_        = attacker.Fighter.Striking.Accuracy / 100.0;
+        var base_        = attacker.EffectiveStrikeAccuracy;
         var staminaMod   = Math.Max(0.5, attacker.CurrentStamina);
         var reachDiff    = attacker.Fighter.Physical.ReachCm - defender.Fighter.Physical.ReachCm;
         var reachMod     = 1.0 + Math.Clamp(reachDiff / 500.0, -0.04, 0.04);
         var physicalMod  = PhysicalAdvantageModel.StrikeAccuracyMultiplier(attacker, defender);
+        var technicalMod = PhysicalAdvantageModel.StandingTechnicalEdgeMultiplier(attacker, defender);
         var stancePenalty = SameStancePenalty(attacker.Fighter.Stance, defender.Fighter.Stance);
-        return Math.Clamp(base_ * staminaMod * reachMod * physicalMod * (1 - stancePenalty), 0.03, 0.98);
+        return Math.Clamp(base_ * staminaMod * reachMod * physicalMod * technicalMod * (1 - stancePenalty), 0.03, 0.98);
     }
 
     // ── Damage ────────────────────────────────────────────────────────────
@@ -180,6 +181,8 @@ public sealed class StrikingEngine : IStrikingEngine
                          * PowerMultipliers.GetValueOrDefault(strikeType, 1.0)
                          * attacker.EffectiveDamageMultiplier
                          * PhysicalAdvantageModel.StrikeDamageMultiplier(attacker, defender);
+
+        baseDamage *= GetImpactScale(attacker, strikeType);
 
         if (IsGroundStrike(strikeType) && IsDominantGroundPosition(attacker.CurrentPosition))
         {
@@ -215,9 +218,15 @@ public sealed class StrikingEngine : IStrikingEngine
 
         baseDamage /= Math.Max(0.45, durability * resistance);
 
-        if (blocked) baseDamage *= 0.4;
+        if (blocked)
+        {
+            var blockedMultiplier = IsHeadStrike(strikeType) ? 0.14
+                : IsBodyStrike(strikeType) ? 0.20
+                : 0.24;
+            baseDamage *= blockedMultiplier;
+        }
 
-        return Math.Clamp(baseDamage * (1 + (_random.NextDouble() - 0.5) * 0.2), 0.05, 12.0);
+        return Math.Clamp(baseDamage * (1 + (_random.NextDouble() - 0.5) * 0.2), 0.05, 14.5);
     }
 
     // ── KO / Stun check ───────────────────────────────────────────────────
@@ -274,6 +283,16 @@ public sealed class StrikingEngine : IStrikingEngine
             _ => 1.0
         };
 
+        if (strikeType is StrikeType.Cross or StrikeType.Hook or StrikeType.Uppercut or StrikeType.Overhand)
+        {
+            flashMultiplier *= attacker.Fighter.Striking.Power switch
+            {
+                >= 97 => 1.30,
+                >= 92 => 1.18,
+                _ => 1.0
+            };
+        }
+
         var power = attacker.Fighter.Striking.Power / 100.0;
         var chin = defender.Fighter.Striking.ChinDurability / 100.0;
         var flashProb = Math.Max(0.0, damage - 7.5) / 11.0
@@ -282,7 +301,7 @@ public sealed class StrikingEngine : IStrikingEngine
             * GetKoDangerMultiplier(attacker, defender)
             * (1.0 - chin * 0.55);
 
-        return _random.Chance(Math.Clamp(flashProb, 0.0, 0.14));
+        return _random.Chance(Math.Clamp(flashProb, 0.0, 0.09));
     }
 
     /// <summary>
@@ -351,28 +370,43 @@ public sealed class StrikingEngine : IStrikingEngine
     /// </summary>
     private static double GetKoDangerMultiplier(FighterState attacker, FighterState defender)
     {
-        var baseMultiplier = attacker.Fighter.Physical.WeightLbs switch
+        var attackerBand = GetKoWeightBand(attacker.CurrentWeightLbs);
+        var defenderBand = GetKoWeightBand(defender.CurrentWeightLbs);
+
+        var baseMultiplier = attackerBand switch
         {
-            >= 235 => 2.0,   // Heavyweight
-            >= 195 => 1.5,   // Light Heavyweight
-            >= 180 => 1.2,   // Middleweight
-            >= 165 => 1.0,   // Welterweight
-            >= 150 => 0.85,  // Lightweight
-            >= 140 => 0.75,  // Featherweight
-            >= 130 => 0.65,  // Bantamweight
-            _      => 0.55   // Flyweight
+            3 => 1.16, // Light heavyweight / heavyweight stay close to each other
+            2 => 1.00, // Welterweight / middleweight
+            1 => 0.86, // Featherweight / lightweight
+            _ => 0.72  // Flyweight / bantamweight
         };
 
-        // Cross-division weight advantage makes the smaller fighter's KO danger skyrocket
-        var weightDiff = attacker.Fighter.Physical.WeightLbs - defender.Fighter.Physical.WeightLbs;
-        if (weightDiff > 0)
-        {
-            var diffBonus = Math.Clamp(weightDiff / 60.0, 0.0, 1.5);
-            baseMultiplier *= 1.0 + diffBonus;
-        }
+        var weightDiff = attacker.CurrentWeightLbs - defender.CurrentWeightLbs;
+        if (weightDiff <= 0)
+            return baseMultiplier;
 
-        return baseMultiplier;
+        var bandGap = Math.Abs(attackerBand - defenderBand);
+        var diffBonus = bandGap switch
+        {
+            0 => Math.Clamp(weightDiff / 220.0, 0.0, 0.08),
+            1 => Math.Clamp(weightDiff / 150.0, 0.0, 0.18),
+            2 => Math.Clamp(weightDiff / 90.0, 0.0, 0.45),
+            _ => Math.Clamp(weightDiff / 60.0, 0.0, 0.90)
+        };
+
+        return baseMultiplier * (1.0 + diffBonus);
     }
+
+    /// <summary>
+    /// Groups nearby divisions for KO calibration so adjacent upper divisions remain competitively close.
+    /// </summary>
+    private static int GetKoWeightBand(double weightLbs) => weightLbs switch
+    {
+        <= 135 => 0,
+        <= 155 => 1,
+        <= 185 => 2,
+        _ => 3
+    };
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -412,6 +446,37 @@ public sealed class StrikingEngine : IStrikingEngine
     /// </summary>
     private static bool IsLegStrike(StrikeType strikeType) => strikeType is
         StrikeType.LowKick or StrikeType.CalfKick or StrikeType.ObliqueKick or StrikeType.Roundhouse or StrikeType.Stomp;
+
+    /// <summary>
+    /// Adds extra impact for elite power strikers, especially in the upper weight classes.
+    /// </summary>
+    private static double GetImpactScale(FighterState attacker, StrikeType strikeType)
+    {
+        var weightBonus = attacker.CurrentWeightLbs switch
+        {
+            >= 205 => 1.10,
+            >= 170 => 1.05,
+            _ => 1.0
+        };
+
+        var powerBonus = attacker.Fighter.Striking.Power switch
+        {
+            >= 97 => 1.16,
+            >= 92 => 1.10,
+            >= 86 => 1.05,
+            _ => 1.0
+        };
+
+        var techniqueBonus = strikeType switch
+        {
+            StrikeType.Cross or StrikeType.Hook or StrikeType.Uppercut or StrikeType.Overhand => 1.08,
+            StrikeType.HeadKick or StrikeType.KneeHead or StrikeType.SpinningElbow => 1.12,
+            StrikeType.BodyKick or StrikeType.KneeBody or StrikeType.BodyShot => 1.06,
+            _ => 1.0
+        };
+
+        return Math.Clamp(weightBonus * powerBonus * techniqueBonus, 1.0, 1.38);
+    }
 
     /// <summary>
     /// Returns whether the strike should be treated as a ground-and-pound attack.

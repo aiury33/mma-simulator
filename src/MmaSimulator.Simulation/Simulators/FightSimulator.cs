@@ -30,6 +30,7 @@ public sealed class FightSimulator : IFightSimulator
     {
         var stateA = new FighterState(fight.FighterA);
         var stateB = new FighterState(fight.FighterB);
+        NormalizeFightWeights(fight, stateA, stateB);
         var rounds = new List<Round>();
 
         FightResultMethod? finishMethod = null;
@@ -148,4 +149,49 @@ public sealed class FightSimulator : IFightSimulator
         stateA.StunRecoveryTicksRemaining = 0;
         stateB.StunRecoveryTicksRemaining = 0;
     }
+
+    /// <summary>
+    /// Adjusts effective fight-night weights so nearby cross-division matchups do not behave like full listed-class gaps.
+    /// </summary>
+    private static void NormalizeFightWeights(Fight fight, FighterState stateA, FighterState stateB)
+    {
+        if (fight.FighterA.WeightClass == fight.FighterB.WeightClass)
+            return;
+
+        var gap = Math.Abs(GetWeightBand(stateA.CurrentWeightLbs) - GetWeightBand(stateB.CurrentWeightLbs));
+
+        var lighter = stateA.CurrentWeightLbs <= stateB.CurrentWeightLbs ? stateA : stateB;
+        var heavier = ReferenceEquals(lighter, stateA) ? stateB : stateA;
+        var rawGap = heavier.CurrentWeightLbs - lighter.CurrentWeightLbs;
+
+        var closeRate = gap switch
+        {
+            0 => 0.82,
+            1 => 0.58,
+            2 => 0.34,
+            _ => 0.14
+        };
+
+        var movedWeight = lighter.CurrentWeightLbs + rawGap * closeRate;
+        var hardCap = gap switch
+        {
+            0 => heavier.CurrentWeightLbs - 6.0,
+            1 => heavier.CurrentWeightLbs - 14.0,
+            2 => heavier.CurrentWeightLbs - 42.0,
+            _ => heavier.CurrentWeightLbs - 78.0
+        };
+
+        lighter.CurrentWeightLbs = Math.Min(movedWeight, hardCap);
+    }
+
+    /// <summary>
+    /// Maps weight values into broad natural-size bands used for fight-night normalization.
+    /// </summary>
+    private static int GetWeightBand(double weightLbs) => weightLbs switch
+    {
+        <= 135 => 0,
+        <= 155 => 1,
+        <= 185 => 2,
+        _ => 3
+    };
 }

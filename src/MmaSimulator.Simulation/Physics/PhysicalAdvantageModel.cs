@@ -23,10 +23,10 @@ internal static class PhysicalAdvantageModel
     {
         var styleReachFactor = attacker.Fighter.PrimaryStyle switch
         {
-            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.Kickboxer) >= 80 => 0.0080,
-            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.MuayThai) >= 80 => 0.0075,
+            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.Kickboxer) >= 80 => 0.0055,
+            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.MuayThai) >= 80 => 0.0052,
             _ when attacker.Fighter.GetStyleProficiency(FightingStyle.Boxer) >= 80 => 0.0050,
-            _ when attacker.Fighter.HasAnySpecialty(StyleSpecialty.KarateDistance, StyleSpecialty.TaekwondoKicks) => 0.0070,
+            _ when attacker.Fighter.HasAnySpecialty(StyleSpecialty.KarateDistance, StyleSpecialty.TaekwondoKicks) => 0.0052,
             _ => 0.0035
         };
 
@@ -64,7 +64,87 @@ internal static class PhysicalAdvantageModel
     {
         var multiplier = BuildPhysicalEdge(defender, attacker, weightFactor: 0.0014, reachFactor: 0.0020, heightFactor: 0.0006, strengthFactor: 0.0010, min: 0.75, max: 1.25);
         multiplier *= GetExtremeMismatchDefenseBonus(defender, attacker);
+        multiplier *= DefensiveStrikingReadMultiplier(defender, attacker);
         return Math.Clamp(multiplier, 0.75, 1.45);
+    }
+
+    /// <summary>
+    /// Applies non-physical striking skill edge so elite technicians are not flattened by mere size and reach.
+    /// </summary>
+    public static double StandingTechnicalEdgeMultiplier(FighterState attacker, FighterState defender)
+    {
+        var attackerQuality =
+            attacker.Fighter.Striking.Accuracy * 0.34 +
+            attacker.Fighter.Striking.Defense * 0.08 +
+            attacker.Fighter.Striking.Speed * 0.14 +
+            attacker.Fighter.Striking.Power * 0.16 +
+            attacker.Fighter.GetStyleProficiency(attacker.Fighter.DominantStrikingStyle()) * 0.18 +
+            attacker.Fighter.FightIq * 0.10;
+
+        var defenderQuality =
+            defender.Fighter.Striking.Defense * 0.38 +
+            defender.Fighter.Striking.ChinDurability * 0.18 +
+            defender.Fighter.Striking.BodyDurability * 0.10 +
+            defender.Fighter.Athletics.Agility * 0.12 +
+            defender.Fighter.GetStyleProficiency(defender.Fighter.DominantStrikingStyle()) * 0.14 +
+            defender.Fighter.FightIq * 0.12;
+
+        var edge = attackerQuality - defenderQuality;
+        var countering = defender.Fighter.HasSpecialty(StyleSpecialty.BoxingCountering) ? 0.06 : 0.0;
+        return Math.Clamp(1.0 + edge / 180.0 - countering, 0.76, 1.24);
+    }
+
+    /// <summary>
+    /// Applies defensive striking awareness so elite defenders and counter strikers are harder to hit cleanly.
+    /// </summary>
+    public static double DefensiveStrikingReadMultiplier(FighterState defender, FighterState attacker)
+    {
+        var defensiveRead =
+            defender.Fighter.Striking.Defense * 0.42 +
+            defender.Fighter.Athletics.Agility * 0.16 +
+            defender.Fighter.FightIq * 0.14 +
+            defender.Fighter.GetStyleProficiency(defender.Fighter.DominantStrikingStyle()) * 0.14 +
+            (defender.Fighter.HasSpecialty(StyleSpecialty.BoxingCountering) ? 10.0 : 0.0) +
+            (defender.Fighter.HasSpecialty(StyleSpecialty.KarateDistance) ? 6.0 : 0.0);
+
+        var attackerRead =
+            attacker.Fighter.Striking.Accuracy * 0.34 +
+            attacker.Fighter.Striking.Speed * 0.18 +
+            attacker.Fighter.FightIq * 0.12 +
+            attacker.Fighter.GetStyleProficiency(attacker.Fighter.DominantStrikingStyle()) * 0.16;
+
+        var edge = defensiveRead - attackerRead;
+        return Math.Clamp(1.0 + edge / 240.0, 0.84, 1.20);
+    }
+
+    /// <summary>
+    /// Reduces standing output when the opponent is a clearly better defensive reader and counter striker.
+    /// </summary>
+    public static double StandingOutputMultiplier(FighterState actor, FighterState opponent)
+    {
+        var actorPressure =
+            actor.Fighter.Striking.Accuracy * 0.26 +
+            actor.Fighter.Striking.Speed * 0.18 +
+            actor.Fighter.FightIq * 0.14 +
+            actor.Fighter.GetStyleProficiency(actor.Fighter.DominantStrikingStyle()) * 0.20 +
+            actor.Fighter.Striking.Power * 0.10 +
+            (actor.Fighter.HasSpecialty(StyleSpecialty.KickboxingPressure) ? 8.0 : 0.0);
+
+        var opponentRead =
+            opponent.Fighter.Striking.Defense * 0.34 +
+            opponent.Fighter.Athletics.Agility * 0.14 +
+            opponent.Fighter.FightIq * 0.16 +
+            opponent.Fighter.GetStyleProficiency(opponent.Fighter.DominantStrikingStyle()) * 0.18 +
+            (opponent.Fighter.HasSpecialty(StyleSpecialty.BoxingCountering) ? 12.0 : 0.0);
+
+        var edge = actorPressure - opponentRead;
+        var styleBias =
+            (actor.Fighter.HasSpecialty(StyleSpecialty.KickboxingPressure) ? 0.08 : 0.0) +
+            (actor.Fighter.HasSpecialty(StyleSpecialty.BoxingPocketPressure) ? 0.06 : 0.0) -
+            (actor.Fighter.HasSpecialty(StyleSpecialty.KickboxingRange) ? 0.05 : 0.0) -
+            (actor.Fighter.HasSpecialty(StyleSpecialty.BoxingCountering) ? 0.04 : 0.0);
+
+        return Math.Clamp(1.0 + edge / 320.0 + styleBias, 0.72, 1.18);
     }
 
     /// <summary>
@@ -74,10 +154,10 @@ internal static class PhysicalAdvantageModel
     {
         var styleReachFactor = attacker.Fighter.PrimaryStyle switch
         {
-            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.Kickboxer) >= 80 => 0.0028,
-            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.MuayThai) >= 80 => 0.0026,
+            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.Kickboxer) >= 80 => 0.0018,
+            _ when attacker.Fighter.GetStyleProficiency(FightingStyle.MuayThai) >= 80 => 0.0017,
             _ when attacker.Fighter.GetStyleProficiency(FightingStyle.Boxer) >= 80 => 0.0016,
-            _ when attacker.Fighter.HasAnySpecialty(StyleSpecialty.KarateDistance, StyleSpecialty.TaekwondoKicks) => 0.0024,
+            _ when attacker.Fighter.HasAnySpecialty(StyleSpecialty.KarateDistance, StyleSpecialty.TaekwondoKicks) => 0.0017,
             _ => 0.0010
         };
 
@@ -176,7 +256,7 @@ internal static class PhysicalAdvantageModel
     /// Determines whether the matchup should be treated as an extreme physical mismatch.
     /// </summary>
     public static bool IsMassiveMismatch(FighterState fighterA, FighterState fighterB)
-        => Math.Abs(fighterA.Fighter.Physical.WeightLbs - fighterB.Fighter.Physical.WeightLbs) >= 60;
+        => Math.Abs(fighterA.CurrentWeightLbs - fighterB.CurrentWeightLbs) >= 60;
 
     /// <summary>
     /// Builds a per-fighter initiative score from speed, agility, stamina, reach, and mass.
@@ -186,10 +266,17 @@ internal static class PhysicalAdvantageModel
         var strikingSpeed = actor.Fighter.Striking.Speed / 100.0;
         var agility = actor.Fighter.Athletics.Agility / 100.0;
         var stamina = Math.Max(0.35, actor.CurrentStamina);
-        var reachTerm = Math.Clamp((actor.Fighter.Physical.ReachCm - opponent.Fighter.Physical.ReachCm) / 120.0, -0.20, 0.20);
+        var reachTerm = Math.Clamp((actor.Fighter.Physical.ReachCm - opponent.Fighter.Physical.ReachCm) / 220.0, -0.08, 0.08);
         var effectiveWeightDiff = GetEffectiveWeightDifference(actor, opponent);
-        var physicalTerm = Math.Clamp(effectiveWeightDiff / 450.0, -0.12, 0.18);
-        var score = (strikingSpeed + agility) * 0.5 * stamina * actor.EffectiveMovementMultiplier * (1.0 + reachTerm + physicalTerm);
+        var physicalTerm = Math.Clamp(effectiveWeightDiff / 700.0, -0.07, 0.10);
+        var pressureBias =
+            (actor.Fighter.HasSpecialty(StyleSpecialty.KickboxingPressure) ? 0.10 : 0.0) +
+            (actor.Fighter.HasSpecialty(StyleSpecialty.BoxingPocketPressure) ? 0.07 : 0.0) -
+            (actor.Fighter.HasSpecialty(StyleSpecialty.KickboxingRange) ? 0.05 : 0.0) -
+            (actor.Fighter.HasSpecialty(StyleSpecialty.BoxingCountering) ? 0.03 : 0.0);
+
+        var score = (strikingSpeed + agility) * 0.5 * stamina * actor.EffectiveMovementMultiplier * (1.0 + reachTerm + physicalTerm + pressureBias);
+        score *= StandingTechnicalEdgeMultiplier(actor, opponent);
         score *= GetExtremeMismatchOffensePenalty(actor, opponent, mildFloor: 0.80, severeFloor: 0.55, catastrophicFloor: 0.38);
         return Math.Max(0.06, score);
     }
@@ -226,36 +313,56 @@ internal static class PhysicalAdvantageModel
     /// </summary>
     private static double GetEffectiveWeightDifference(FighterState advantaged, FighterState disadvantaged)
     {
-        var rawDiff = advantaged.Fighter.Physical.WeightLbs - disadvantaged.Fighter.Physical.WeightLbs;
+        var rawDiff = advantaged.CurrentWeightLbs - disadvantaged.CurrentWeightLbs;
         if (rawDiff == 0)
             return 0;
 
         var absDiff = Math.Abs(rawDiff);
-        var bandGap = Math.Abs(GetWeightBand(advantaged.Fighter.Physical.WeightLbs) - GetWeightBand(disadvantaged.Fighter.Physical.WeightLbs));
+        var bandGap = Math.Abs(GetWeightBand(advantaged.CurrentWeightLbs) - GetWeightBand(disadvantaged.CurrentWeightLbs));
 
-        var sameBandScaled = absDiff switch
+        var scaledDiff = bandGap switch
         {
-            <= 15 => absDiff * 0.18,
-            <= 35 => 2.7 + (absDiff - 15) * 0.14,
-            <= 60 => 5.5 + (absDiff - 35) * 0.10,
-            _ => 8.0 + (absDiff - 60) * 0.08
+            // Same natural-size band: keep differences light even when the listed class differs.
+            // This is where LHW vs HW and MW vs WW should still look competitive.
+            0 => absDiff switch
+            {
+                <= 20 => absDiff * 0.03,
+                <= 45 => 0.60 + (absDiff - 20) * 0.035,
+                _ => 1.475 + (absDiff - 45) * 0.025
+            },
+
+            // Adjacent bands: visible advantage, but still far from deterministic.
+            1 => absDiff switch
+            {
+                <= 20 => absDiff * 0.06,
+                <= 45 => 1.20 + (absDiff - 20) * 0.060,
+                _ => 2.70 + (absDiff - 45) * 0.050
+            },
+
+            // Two-band gaps: now the size edge becomes severe.
+            2 => absDiff switch
+            {
+                <= 30 => absDiff * 0.16,
+                <= 60 => 4.80 + (absDiff - 30) * 0.14,
+                _ => 9.00 + (absDiff - 60) * 0.10
+            },
+
+            // Three-band gaps: preserve extreme mismatch behavior for flyweight vs heavyweight.
+            _ => absDiff switch
+            {
+                <= 40 => absDiff * 0.26,
+                <= 80 => 10.40 + (absDiff - 40) * 0.22,
+                _ => 19.20 + (absDiff - 80) * 0.18
+            }
         };
 
-        var crossBandBoost = bandGap switch
-        {
-            0 => 1.00,
-            1 => 1.45,
-            2 => 2.25,
-            _ => 3.35
-        };
-
-        return Math.Sign(rawDiff) * sameBandScaled * crossBandBoost;
+        return Math.Sign(rawDiff) * scaledDiff;
     }
 
     /// <summary>
     /// Groups divisions into nearby natural-size bands so adjacent classes stay competitively close.
     /// </summary>
-    private static int GetWeightBand(int weightLbs) => weightLbs switch
+    private static int GetWeightBand(double weightLbs) => weightLbs switch
     {
         <= 135 => 0, // Flyweight / Bantamweight
         <= 155 => 1, // Featherweight / Lightweight
@@ -273,12 +380,12 @@ internal static class PhysicalAdvantageModel
         double severeFloor,
         double catastrophicFloor)
     {
-        var weightDiff = actor.Fighter.Physical.WeightLbs - opponent.Fighter.Physical.WeightLbs;
+        var weightDiff = actor.CurrentWeightLbs - opponent.CurrentWeightLbs;
         if (weightDiff >= 0)
             return 1.0;
 
         var absDiff = Math.Abs(weightDiff);
-        var bandGap = Math.Abs(GetWeightBand(actor.Fighter.Physical.WeightLbs) - GetWeightBand(opponent.Fighter.Physical.WeightLbs));
+        var bandGap = Math.Abs(GetWeightBand(actor.CurrentWeightLbs) - GetWeightBand(opponent.CurrentWeightLbs));
 
         if (absDiff < 30)
             return 1.0;
@@ -300,12 +407,12 @@ internal static class PhysicalAdvantageModel
     /// </summary>
     private static double GetExtremeMismatchDefenseBonus(FighterState actor, FighterState opponent)
     {
-        var weightDiff = actor.Fighter.Physical.WeightLbs - opponent.Fighter.Physical.WeightLbs;
+        var weightDiff = actor.CurrentWeightLbs - opponent.CurrentWeightLbs;
         if (weightDiff <= 0)
             return 1.0;
 
         var absDiff = weightDiff;
-        var bandGap = Math.Abs(GetWeightBand(actor.Fighter.Physical.WeightLbs) - GetWeightBand(opponent.Fighter.Physical.WeightLbs));
+        var bandGap = Math.Abs(GetWeightBand(actor.CurrentWeightLbs) - GetWeightBand(opponent.CurrentWeightLbs));
 
         if (absDiff < 45)
             return 1.0;
